@@ -14,8 +14,9 @@ import (
 func main() {
 	var ope string
 	var dbConInfo = db.DatabaseCon{Port: 1433, Instance: "SQLEXPRESS"}
-	var databases []string
+	//var databases []string
 	var path string
+	var databases = new(db.Database)
 
 	//file, err := openLogFile("./sqlLog.log")
 
@@ -49,7 +50,7 @@ func main() {
 			fmt.Println("Erro: ", err)
 			return
 		}
-		databases = append(databases, dbName)
+		databases.Names = append(databases.Names, dbName)
 	}
 
 	defaultbackuppath, err := con.Query("SELECT SERVERPROPERTY('instancedefaultbackuppath');")
@@ -64,7 +65,7 @@ func main() {
 	fmt.Printf("Caminho onde serao salvos os backups: %v/", path)
 	fmt.Scanf("%s\n", &path)
 
-	for _, database := range databases {
+	for _, database := range databases.Names {
 		result, err := i.BackupDB(con, database, path)
 		if err != nil {
 			fmt.Println("Erro: ", err)
