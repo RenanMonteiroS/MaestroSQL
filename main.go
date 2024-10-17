@@ -5,7 +5,7 @@ import (
 
 	//"log"
 	//"os"
-	i "github.com/RenanMonteiroS/MaestroSQL/internal"
+
 	db "github.com/RenanMonteiroS/MaestroSQL/model"
 	u "github.com/RenanMonteiroS/MaestroSQL/utils"
 	_ "github.com/microsoft/go-mssqldb"
@@ -14,8 +14,6 @@ import (
 func main() {
 	var ope string
 	var dbConInfo = db.DatabaseCon{Port: 1433, Instance: "SQLEXPRESS"}
-	//var databases []string
-	var path string
 	var databases = new(db.Database)
 
 	//file, err := openLogFile("./sqlLog.log")
@@ -36,44 +34,27 @@ func main() {
 	fmt.Scanf("%s\n", &dbConInfo.Pwd)
 
 	con, err := u.DbCon(&dbConInfo)
-
-	dbList, err := con.Query("SELECT name FROM sys.databases WHERE name not in ('master', 'model', 'msdb', 'tempdb');")
 	if err != nil {
 		fmt.Println("Erro: ", err)
 		return
 	}
 
-	for dbList.Next() {
-		var dbName string
-		err := dbList.Scan(&dbName)
-		if err != nil {
-			fmt.Println("Erro: ", err)
-			return
-		}
-		databases.Names = append(databases.Names, dbName)
+	dbList, err := databases.GetAllDatabases(con)
+	for _, db := range *dbList {
+		databases.Names = append(databases.Names, db)
 	}
 
-	defaultbackuppath, err := con.Query("SELECT SERVERPROPERTY('instancedefaultbackuppath');")
-	for defaultbackuppath.Next() {
-		err := defaultbackuppath.Scan(&path)
-		if err != nil {
-			fmt.Println("Erro: ", err)
-			return
-		}
+	databases.Path, err = databases.GetDefaultBackupPath(con)
+
+	fmt.Printf("Caminho onde serao salvos os backups: %v/", databases.Path)
+	fmt.Scanf("%s\n", &databases.Path)
+
+	result, err := databases.Backup(con)
+	if err != nil {
+		fmt.Println("Erro: ", err)
+		return
 	}
-
-	fmt.Printf("Caminho onde serao salvos os backups: %v/", path)
-	fmt.Scanf("%s\n", &path)
-
-	for _, database := range databases.Names {
-		result, err := i.BackupDB(con, database, path)
-		if err != nil {
-			fmt.Println("Erro: ", err)
-			return
-		}
-		fmt.Println(result)
-	}
-
+	fmt.Println(*result)
 }
 
 /* func openLogFile(path string) (*os.File, error) {
