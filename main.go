@@ -2,16 +2,32 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"os"
 
-	//"log"
 	//"os"
-
+	"gioui.org/app"
+	"gioui.org/op"
+	"gioui.org/unit"
+	"gioui.org/widget"
+	"gioui.org/widget/material"
 	db "github.com/RenanMonteiroS/MaestroSQL/model"
 	u "github.com/RenanMonteiroS/MaestroSQL/utils"
 	_ "github.com/microsoft/go-mssqldb"
 )
 
 func main() {
+	go func() {
+		w := new(app.Window)
+		w.Option(app.Title("MaestroSQL"))
+		w.Option(app.Size(unit.Dp(1000), unit.Dp(600)))
+		if err := draw(w); err != nil {
+			log.Fatal(err)
+		}
+		os.Exit(0)
+	}()
+	app.Main()
+
 	var ope string
 	var dbConInfo = db.DatabaseCon{Port: 1433, Instance: "SQLEXPRESS"}
 	var databases = new(db.Database)
@@ -39,6 +55,8 @@ func main() {
 		return
 	}
 
+	defer con.Close()
+
 	dbList, err := databases.GetAllDatabases(con)
 	for _, db := range *dbList {
 		databases.Names = append(databases.Names, db)
@@ -57,10 +75,84 @@ func main() {
 	fmt.Println(*result)
 }
 
-/* func openLogFile(path string) (*os.File, error) {
-	logFile, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0777)
-	if err != nil {
-		return nil, err
+/*
+	 func openLogFile(path string) (*os.File, error) {
+		logFile, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0777)
+		if err != nil {
+			return nil, err
+		}
+		return logFile, nil
 	}
-	return logFile, nil
-} */
+*/
+var hostInput widget.Editor
+var sendButtonVar widget.Clickable
+
+func draw(window *app.Window) error {
+	theme := material.NewTheme()
+	var ops op.Ops
+	for {
+		switch e := window.Event().(type) {
+		case app.DestroyEvent:
+			return e.Err
+		case app.FrameEvent:
+			gtx := app.NewContext(&ops, e)
+
+			sendButton := material.Button(theme, &sendButtonVar, "Start")
+			sendButton.Layout(gtx)
+
+			if sendButton.Button.Clicked(gtx) {
+				//inputString := hostInput.Text()
+				fmt.Println("hey")
+			}
+			e.Frame(gtx.Ops)
+			/* layout.Flex{
+				Axis:    layout.Vertical,
+				Spacing: layout.SpaceStart,
+			}.Layout(gtx,
+				layout.Rigid(
+					func(gtx layout.Context) layout.Dimensions {
+						// ONE: First define margins around the button using layout.Inset ...
+						margins := layout.Inset{
+							Top:    unit.Dp(25),
+							Bottom: unit.Dp(25),
+							Right:  unit.Dp(35),
+							Left:   unit.Dp(35),
+						}
+						// TWO: ... then we lay out those margins ...
+						return margins.Layout(gtx,
+							// THREE: ... and finally within the margins, we ddefine and lay out the button
+							func(gtx layout.Context) layout.Dimensions {
+								input := material.Editor(theme, &hostInput, "teste")
+								return input.Layout(gtx)
+							},
+						)
+					},
+				),
+				layout.Rigid(
+					func(gtx layout.Context) layout.Dimensions {
+
+						margins := layout.Inset{
+							Top:    unit.Dp(25),
+							Bottom: unit.Dp(25),
+							Right:  unit.Dp(35),
+							Left:   unit.Dp(35),
+						}
+
+						return margins.Layout(gtx,
+							func(gtx layout.Context) layout.Dimensions {
+								sendButton := material.Button(theme, &sendButton, "Start")
+								return sendButton.Layout(gtx)
+							},
+						)
+					},
+				),
+			) */
+
+			/* if sendButton.Clicked(gtx) {
+				//inputString := hostInput.Text()
+				fmt.Println("hey")
+			}
+			e.Frame(gtx.Ops) */
+		}
+	}
+}
