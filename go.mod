@@ -18,5 +18,6 @@ require (
 
 require (
 	gioui.org v0.7.1
+	gioui.org/x v0.7.1
 	github.com/microsoft/go-mssqldb v1.7.2
 )

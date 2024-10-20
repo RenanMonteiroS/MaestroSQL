@@ -3,7 +3,7 @@ package model
 type DatabaseCon struct {
 	Host     string
 	Instance string
-	Port     int16
+	Port     string
 	User     string
 	Pwd      string
 }

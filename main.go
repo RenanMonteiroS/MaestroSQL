@@ -2,35 +2,49 @@ package main
 
 import (
 	"fmt"
+	"image/color"
 	"log"
 	"os"
+	"strings"
 
 	//"os"
 	"gioui.org/app"
+	"gioui.org/layout"
 	"gioui.org/op"
+	"gioui.org/text"
 	"gioui.org/unit"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
+	"gioui.org/x/component"
 	db "github.com/RenanMonteiroS/MaestroSQL/model"
 	u "github.com/RenanMonteiroS/MaestroSQL/utils"
 	_ "github.com/microsoft/go-mssqldb"
 )
 
+var hostInput widget.Editor
+var portInput widget.Editor
+var userInput widget.Editor
+var passwordInput widget.Editor
+var locationBackupInput widget.Editor
+var sendButton widget.Clickable
+var appbar component.AppBar
+
 func main() {
+
+	var ope string
+	var dbConInfo = db.DatabaseCon{Port: "1433", Instance: "SQLEXPRESS"}
+	var databases = new(db.Database)
+
 	go func() {
 		w := new(app.Window)
 		w.Option(app.Title("MaestroSQL"))
 		w.Option(app.Size(unit.Dp(1000), unit.Dp(600)))
-		if err := draw(w); err != nil {
+		if err := draw(w, &dbConInfo); err != nil {
 			log.Fatal(err)
 		}
 		os.Exit(0)
 	}()
 	app.Main()
-
-	var ope string
-	var dbConInfo = db.DatabaseCon{Port: 1433, Instance: "SQLEXPRESS"}
-	var databases = new(db.Database)
 
 	//file, err := openLogFile("./sqlLog.log")
 
@@ -72,6 +86,7 @@ func main() {
 		fmt.Println("Erro: ", err)
 		return
 	}
+
 	fmt.Println(*result)
 }
 
@@ -84,11 +99,10 @@ func main() {
 		return logFile, nil
 	}
 */
-var hostInput widget.Editor
-var sendButtonVar widget.Clickable
 
-func draw(window *app.Window) error {
+func draw(window *app.Window, dbConInfo *db.DatabaseCon) error {
 	theme := material.NewTheme()
+
 	var ops op.Ops
 	for {
 		switch e := window.Event().(type) {
@@ -97,33 +111,153 @@ func draw(window *app.Window) error {
 		case app.FrameEvent:
 			gtx := app.NewContext(&ops, e)
 
-			sendButton := material.Button(theme, &sendButtonVar, "Start")
-			sendButton.Layout(gtx)
+			if sendButton.Clicked(gtx) {
+				dbConInfo.Host = strings.TrimSpace(hostInput.Text())
+				dbConInfo.Port = strings.TrimSpace(portInput.Text())
+				dbConInfo.User = strings.TrimSpace(userInput.Text())
+				dbConInfo.Pwd = strings.TrimSpace(passwordInput.Text())
+				//locationBackupString := strings.TrimSpace(locationBackupInput.Text())
 
-			if sendButton.Button.Clicked(gtx) {
-				//inputString := hostInput.Text()
-				fmt.Println("hey")
 			}
-			e.Frame(gtx.Ops)
-			/* layout.Flex{
-				Axis:    layout.Vertical,
+
+			layout.Flex{
+				Axis: layout.Vertical,
+				//Espaco no inicio da tela
 				Spacing: layout.SpaceStart,
 			}.Layout(gtx,
+
 				layout.Rigid(
 					func(gtx layout.Context) layout.Dimensions {
-						// ONE: First define margins around the button using layout.Inset ...
+
+						hostInput.Alignment = text.Middle
+						hostInput.SingleLine = true
+						input := material.Editor(theme, &hostInput, "Host")
+
 						margins := layout.Inset{
 							Top:    unit.Dp(25),
 							Bottom: unit.Dp(25),
-							Right:  unit.Dp(35),
-							Left:   unit.Dp(35),
+							Right:  unit.Dp(300),
+							Left:   unit.Dp(300),
 						}
-						// TWO: ... then we lay out those margins ...
+
+						border := widget.Border{
+							Color:        color.NRGBA{63, 81, 181, 255},
+							CornerRadius: unit.Dp(3),
+							Width:        unit.Dp(2),
+						}
+
 						return margins.Layout(gtx,
-							// THREE: ... and finally within the margins, we ddefine and lay out the button
 							func(gtx layout.Context) layout.Dimensions {
-								input := material.Editor(theme, &hostInput, "teste")
-								return input.Layout(gtx)
+								return border.Layout(gtx, input.Layout)
+							},
+						)
+					},
+				),
+				layout.Rigid(
+					func(gtx layout.Context) layout.Dimensions {
+
+						input := material.Editor(theme, &portInput, "Porta")
+
+						portInput.Alignment = text.Middle
+						portInput.SingleLine = true
+
+						margins := layout.Inset{
+							Top:    unit.Dp(25),
+							Bottom: unit.Dp(25),
+							Right:  unit.Dp(300),
+							Left:   unit.Dp(300),
+						}
+
+						border := widget.Border{
+							Color:        color.NRGBA{63, 81, 181, 255},
+							CornerRadius: unit.Dp(3),
+							Width:        unit.Dp(2),
+						}
+
+						return margins.Layout(gtx,
+							func(gtx layout.Context) layout.Dimensions {
+								return border.Layout(gtx, input.Layout)
+							},
+						)
+					},
+				),
+				layout.Rigid(
+					func(gtx layout.Context) layout.Dimensions {
+						userInput.Alignment = text.Middle
+						userInput.SingleLine = true
+						input := material.Editor(theme, &userInput, "Usuario")
+
+						margins := layout.Inset{
+							Top:    unit.Dp(25),
+							Bottom: unit.Dp(25),
+							Right:  unit.Dp(300),
+							Left:   unit.Dp(300),
+						}
+
+						border := widget.Border{
+							Color:        color.NRGBA{63, 81, 181, 255},
+							CornerRadius: unit.Dp(3),
+							Width:        unit.Dp(2),
+						}
+
+						return margins.Layout(gtx,
+							func(gtx layout.Context) layout.Dimensions {
+								return border.Layout(gtx, input.Layout)
+							},
+						)
+					},
+				),
+				layout.Rigid(
+					func(gtx layout.Context) layout.Dimensions {
+						input := material.Editor(theme, &passwordInput, "Senha")
+
+						passwordInput.Alignment = text.Middle
+						passwordInput.SingleLine = true
+
+						margins := layout.Inset{
+							Top:    unit.Dp(25),
+							Bottom: unit.Dp(25),
+							Right:  unit.Dp(300),
+							Left:   unit.Dp(300),
+						}
+
+						border := widget.Border{
+							Color:        color.NRGBA{63, 81, 181, 255},
+							CornerRadius: unit.Dp(3),
+							Width:        unit.Dp(2),
+						}
+
+						return margins.Layout(gtx,
+							func(gtx layout.Context) layout.Dimensions {
+								return border.Layout(gtx, input.Layout)
+							},
+						)
+					},
+				),
+				layout.Rigid(
+					func(gtx layout.Context) layout.Dimensions {
+
+						input := material.Editor(theme, &locationBackupInput, "Localizacao dos backups")
+
+						locationBackupInput.Alignment = text.Middle
+						locationBackupInput.SingleLine = true
+
+						margins := layout.Inset{
+							Top:    unit.Dp(25),
+							Bottom: unit.Dp(25),
+							Right:  unit.Dp(300),
+							Left:   unit.Dp(300),
+						}
+
+						border := widget.Border{
+							Color:        color.NRGBA{63, 81, 181, 255},
+							CornerRadius: unit.Dp(3),
+							Width:        unit.Dp(2),
+						}
+
+						return margins.Layout(gtx,
+							func(gtx layout.Context) layout.Dimensions {
+								return border.Layout(gtx, input.Layout)
 							},
 						)
 					},
@@ -134,8 +268,8 @@ func draw(window *app.Window) error {
 						margins := layout.Inset{
 							Top:    unit.Dp(25),
 							Bottom: unit.Dp(25),
-							Right:  unit.Dp(35),
-							Left:   unit.Dp(35),
+							Right:  unit.Dp(300),
+							Left:   unit.Dp(300),
 						}
 
 						return margins.Layout(gtx,
@@ -146,13 +280,9 @@ func draw(window *app.Window) error {
 						)
 					},
 				),
-			) */
+			)
 
-			/* if sendButton.Clicked(gtx) {
-				//inputString := hostInput.Text()
-				fmt.Println("hey")
-			}
-			e.Frame(gtx.Ops) */
+			e.Frame(gtx.Ops)
 		}
 	}
 }
