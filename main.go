@@ -2,32 +2,32 @@ package main
 
 import (
 	"fmt"
-	"image/color"
-	"log"
-	"os"
-	"strings"
+	//"image/color"
 
+	//"log"
 	//"os"
-	"gioui.org/app"
-	"gioui.org/layout"
-	"gioui.org/op"
-	"gioui.org/text"
-	"gioui.org/unit"
-	"gioui.org/widget"
-	"gioui.org/widget/material"
-	"gioui.org/x/component"
+	//"strings"
+
+	//"gioui.org/app"
+	//"gioui.org/layout"
+	//"gioui.org/op"
+	//"gioui.org/text"
+	//"gioui.org/unit"
+	//"gioui.org/widget"
+	//"gioui.org/widget/material"
+	//"gioui.org/x/component"
 	db "github.com/RenanMonteiroS/MaestroSQL/model"
 	u "github.com/RenanMonteiroS/MaestroSQL/utils"
 	_ "github.com/microsoft/go-mssqldb"
 )
 
-var hostInput widget.Editor
+/* var hostInput widget.Editor
 var portInput widget.Editor
 var userInput widget.Editor
 var passwordInput widget.Editor
 var locationBackupInput widget.Editor
 var sendButton widget.Clickable
-var appbar component.AppBar
+var appbar component.AppBar */
 
 func main() {
 
@@ -35,7 +35,7 @@ func main() {
 	var dbConInfo = db.DatabaseCon{Port: "1433", Instance: "SQLEXPRESS"}
 	var databases = new(db.Database)
 
-	go func() {
+	/* go func() {
 		w := new(app.Window)
 		w.Option(app.Title("MaestroSQL"))
 		w.Option(app.Size(unit.Dp(1000), unit.Dp(600)))
@@ -44,7 +44,7 @@ func main() {
 		}
 		os.Exit(0)
 	}()
-	app.Main()
+	app.Main() */
 
 	//file, err := openLogFile("./sqlLog.log")
 
@@ -57,7 +57,7 @@ func main() {
 	fmt.Println("Instancia (SQLEXPRESS):")
 	fmt.Scanf("%s\n", &dbConInfo.Instance)
 	fmt.Println("Porta (1433):")
-	fmt.Scanf("%d\n", &dbConInfo.Port)
+	fmt.Scanf("%s\n", &dbConInfo.Port)
 	fmt.Println("Usuario:")
 	fmt.Scanf("%s\n", &dbConInfo.User)
 	fmt.Println("Senha:")
@@ -77,8 +77,15 @@ func main() {
 	}
 
 	databases.Path, err = databases.GetDefaultBackupPath(con)
+	if err != nil {
+		if err.Error() != "sql: Scan error on column index 0, name \"\": converting NULL to string is unsupported" {
+			fmt.Println("Erro: ", err)
+			return
+		}
+		databases.Path = ""
+	}
 
-	fmt.Printf("Caminho onde serao salvos os backups: %v/", databases.Path)
+	fmt.Printf("Caminho onde serao salvos os backups: (%v/)\n", databases.Path)
 	fmt.Scanf("%s\n", &databases.Path)
 
 	result, err := databases.Backup(con)
@@ -100,7 +107,7 @@ func main() {
 	}
 */
 
-func draw(window *app.Window, dbConInfo *db.DatabaseCon) error {
+/* func draw(window *app.Window, dbConInfo *db.DatabaseCon) error {
 	theme := material.NewTheme()
 
 	var ops op.Ops
@@ -285,4 +292,4 @@ func draw(window *app.Window, dbConInfo *db.DatabaseCon) error {
 			e.Frame(gtx.Ops)
 		}
 	}
-}
+} */
