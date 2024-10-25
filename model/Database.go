@@ -3,6 +3,9 @@ package model
 import (
 	"database/sql"
 	"fmt"
+	"log"
+	"os"
+	"sync"
 	"time"
 )
 
@@ -11,20 +14,38 @@ type Database struct {
 	Path  string
 }
 
-func (db Database) Backup(con *sql.DB) (*[]string, error) {
-	var queries []string
-	for _, dbName := range db.Names {
-		var query string
-		query = "BACKUP DATABASE [" + dbName + "] TO DISK = '" + db.Path + "/" + dbName + "_" + time.Now().Format("2006-01-02") + "_" + time.Now().Format("15-04-05") + ".bak' WITH FORMAT;"
-		queries = append(queries, query)
-		fmt.Println(queries)
-		_, err := con.Query(query)
-		if err != nil {
-			fmt.Println("Erro: ", err)
-			return &queries, err
-		}
+func (db Database) Backup(con *sql.DB) (int, error) {
+	var wg sync.WaitGroup
+
+	var sumBackupDbs int
+	f, err := os.OpenFile("backupDatabase.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		log.Println(err)
+		return 0, err
 	}
-	return &queries, nil
+	log.SetOutput(f)
+
+	for _, dbName := range db.Names {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			var query string
+			query = "BACKUP DATABASE [" + dbName + "] TO DISK = '" + db.Path + "/" + dbName + "_" + time.Now().Format("2006-01-02") + "_" + time.Now().Format("15-04-05") + ".bak' WITH FORMAT;"
+
+			_, err = con.Query(query)
+			if err != nil {
+				log.Printf("Erro: %v Banco de dados: %v", err, dbName)
+				return
+			}
+			sumBackupDbs += 1
+			log.Printf(query)
+			//queries = append(queries, query)
+		}()
+	}
+	wg.Wait()
+	defer f.Close()
+
+	return sumBackupDbs, nil
 }
 
 func (db Database) GetAllDatabases(con *sql.DB) (*[]string, error) {

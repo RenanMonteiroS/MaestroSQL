@@ -1,12 +1,17 @@
+//go:generate goversioninfo -icon=conductor.ico
 package main
 
 import (
 	"fmt"
+	"os"
+	"syscall"
+	"time"
+
 	//"image/color"
 
 	//"log"
-	//"os"
-	//"strings"
+
+	"golang.org/x/term"
 
 	//"gioui.org/app"
 	//"gioui.org/layout"
@@ -30,11 +35,11 @@ var sendButton widget.Clickable
 var appbar component.AppBar */
 
 func main() {
+	//var ope string
 
-	var ope string
+	var err error
 	var dbConInfo = db.DatabaseCon{Port: "1433", Instance: "SQLEXPRESS"}
 	var databases = new(db.Database)
-
 	/* go func() {
 		w := new(app.Window)
 		w.Option(app.Title("MaestroSQL"))
@@ -48,20 +53,34 @@ func main() {
 
 	//file, err := openLogFile("./sqlLog.log")
 
-	fmt.Println("Digite a operacao desejada: (Backup, Restore)")
-	fmt.Scanf("%s\n", &ope)
+	/* fmt.Println("Digite a operacao desejada: (Backup, Restore)")
+	ope, err = reader.ReadString('\n')
+	if err != nil {
+		fmt.Println(err)
+		return
+	} */
 
 	fmt.Println("Digite as informacoes relativas a conexao com o banco de dados:")
+
 	fmt.Println("Host:")
 	fmt.Scanf("%s\n", &dbConInfo.Host)
+
 	fmt.Println("Instancia (SQLEXPRESS):")
 	fmt.Scanf("%s\n", &dbConInfo.Instance)
+
 	fmt.Println("Porta (1433):")
 	fmt.Scanf("%s\n", &dbConInfo.Port)
+
 	fmt.Println("Usuario:")
 	fmt.Scanf("%s\n", &dbConInfo.User)
+
 	fmt.Println("Senha:")
-	fmt.Scanf("%s\n", &dbConInfo.Pwd)
+	bytePwd, err := term.ReadPassword(int(syscall.Stdin))
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	dbConInfo.Pwd = string(bytePwd)
 
 	con, err := u.DbCon(&dbConInfo)
 	if err != nil {
@@ -88,24 +107,17 @@ func main() {
 	fmt.Printf("Caminho onde serao salvos os backups: (%v/)\n", databases.Path)
 	fmt.Scanf("%s\n", &databases.Path)
 
-	result, err := databases.Backup(con)
-	if err != nil {
-		fmt.Println("Erro: ", err)
-		return
-	}
+	t0 := time.Now()
+	backupQty, err := databases.Backup(con)
 
-	fmt.Println(*result)
+	f, err := os.OpenFile("backupDatabase.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	fmt.Fprintf(f, "-------------------//-------------------//-------------------//-------------------")
+	fmt.Fprintf(f, "\nData: %v", time.Now().Format("2006-01-02"))
+	fmt.Fprintf(f, "\nTotal de backups realizados: %v", backupQty)
+	fmt.Fprintf(f, "\nLocal: %v", databases.Path)
+	fmt.Fprintf(f, "\nTempo total: %v", time.Since(t0))
+	fmt.Fprintf(f, "\n-------------------//-------------------//-------------------//-------------------\n")
 }
-
-/*
-	 func openLogFile(path string) (*os.File, error) {
-		logFile, err := os.OpenFile(path, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0777)
-		if err != nil {
-			return nil, err
-		}
-		return logFile, nil
-	}
-*/
 
 /* func draw(window *app.Window, dbConInfo *db.DatabaseCon) error {
 	theme := material.NewTheme()
