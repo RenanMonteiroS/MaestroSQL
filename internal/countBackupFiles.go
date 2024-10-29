@@ -1,15 +1,19 @@
 package internal
 
 import (
-	"fmt"
 	"os"
 )
 
-func CountBackupFiles(path string) (int, error) {
-	dir, err := os.ReadDir("C:/_Backup")
+func CountBackupFiles(path string) ([]string, error) {
+	var backups []string
+	dir, err := os.ReadDir(path)
 	if err != nil {
-		fmt.Println(err)
+		return backups, err
 	}
-	fmt.Println(dir)
-	return 0, nil
+	for _, file := range dir {
+		backups = append(backups, file.Name())
+	}
+
+	return backups, nil
+
 }

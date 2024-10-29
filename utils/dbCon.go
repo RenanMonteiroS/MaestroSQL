@@ -23,6 +23,14 @@ func DbCon(dbConInfo *db.DatabaseCon) (*sql.DB, error) {
 	}
 
 	con, err := sql.Open("sqlserver", u.String())
+	if err != nil {
+		return con, err
+	}
 
-	return con, err
+	err = con.Ping()
+	if err != nil {
+		return con, err
+	}
+
+	return con, nil
 }

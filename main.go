@@ -59,18 +59,52 @@ func main() {
 		err := i.PrintBackupForm(&dbConInfo)
 		if err != nil {
 			fmt.Println("Erro: ", err)
+			f, errFile := os.OpenFile("fatal.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+			if errFile != nil {
+				fmt.Println("Erro: ", errFile)
+				time.Sleep(time.Second * 5)
+				return
+			}
+			defer f.Close()
+			fmt.Fprintf(f, "Erro: %v", err)
+			time.Sleep(time.Second * 5)
 			return
 		}
 
 		con, err := u.DbCon(&dbConInfo)
+
 		if err != nil {
-			fmt.Println("Erro: ", err)
+			fmt.Printf("Erro: %v", err)
+			f, errFile := os.OpenFile("fatal.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+			defer f.Close()
+			if errFile != nil {
+				fmt.Println("Erro: ", errFile)
+				time.Sleep(time.Second * 5)
+				return
+			}
+
+			fmt.Fprintf(f, "Erro: %v", err)
+			time.Sleep(time.Second * 5)
 			return
 		}
 
 		defer con.Close()
 
 		dbList, err := databases.GetAllDatabases(con)
+		if err != nil {
+			fmt.Println("Erro: ", err)
+			f, errFile := os.OpenFile("fatal.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+			defer f.Close()
+			if errFile != nil {
+				fmt.Println("Erro: ", errFile)
+				time.Sleep(time.Second * 5)
+				return
+			}
+			fmt.Fprintf(f, "Erro: %v", err)
+			time.Sleep(time.Second * 5)
+			return
+		}
+
 		for _, db := range *dbList {
 			databases.Names = append(databases.Names, db)
 		}
@@ -78,7 +112,16 @@ func main() {
 		databases.Path, err = databases.GetDefaultBackupPath(con)
 		if err != nil {
 			if err.Error() != "sql: Scan error on column index 0, name \"\": converting NULL to string is unsupported" {
+				f, errFile := os.OpenFile("fatal.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+				defer f.Close()
+				if errFile != nil {
+					fmt.Printf("Erro: %v\n", err)
+					time.Sleep(time.Second * 5)
+					return
+				}
+				fmt.Fprintf(f, "Erro: %v", err)
 				fmt.Println("Erro: ", err)
+				time.Sleep(time.Second * 5)
 				return
 			}
 			databases.Path = ""
@@ -89,21 +132,128 @@ func main() {
 
 		t0 := time.Now()
 		backupQty, err := databases.Backup(con)
+		if err != nil {
+			fmt.Printf("Erro: %v\n", err)
+			f, errFile := os.OpenFile("fatal.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+			defer f.Close()
+			if errFile != nil {
+				fmt.Printf("Erro: %v\n", errFile)
+				time.Sleep(time.Second * 5)
+				return
+			}
+			fmt.Fprintf(f, "Erro: %v", err)
+			time.Sleep(time.Second * 5)
+			return
+		}
 
-		f, err := os.OpenFile("backupDatabase.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+		f, errFile := os.OpenFile("backupDatabase.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+		if errFile != nil {
+			fmt.Printf("Erro: %v\n", errFile)
+			time.Sleep(time.Second * 5)
+			return
+		}
+
 		fmt.Fprintf(f, "-------------------//-------------------//-------------------//-------------------")
 		fmt.Fprintf(f, "\nData: %v", time.Now().Format("2006-01-02"))
 		fmt.Fprintf(f, "\nTotal de backups realizados: %v", backupQty)
 		fmt.Fprintf(f, "\nLocal: %v", databases.Path)
 		fmt.Fprintf(f, "\nTempo total: %v", time.Since(t0))
 		fmt.Fprintf(f, "\n-------------------//-------------------//-------------------//-------------------\n")
+		defer f.Close()
+
 	case "Restore":
-		var path string
 		fmt.Println("Digite o local onde os backups estão alocados:")
-		fmt.Scanf("%s\n", &path)
-		i.CountBackupFiles(path)
+		fmt.Scanf("%s\n", &databases.Path)
+		backupFileList, err := i.CountBackupFiles(databases.Path)
+		if err != nil {
+			fmt.Println("Erro: ", err)
+			f, errFile := os.OpenFile("fatal.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+			defer f.Close()
+			if errFile != nil {
+				fmt.Println("Erro: ", errFile)
+				time.Sleep(time.Second * 5)
+				return
+			}
+			fmt.Fprintf(f, "Erro: %v", err)
+			time.Sleep(time.Second * 5)
+			return
+		}
+
+		err = i.PrintBackupForm(&dbConInfo)
+		if err != nil {
+			fmt.Println("Erro: ", err)
+			f, errFile := os.OpenFile("fatal.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+			defer f.Close()
+			if errFile != nil {
+				fmt.Println("Erro: ", errFile)
+				time.Sleep(time.Second * 5)
+				return
+			}
+			fmt.Fprintf(f, "Erro: %v", err)
+			time.Sleep(time.Second * 5)
+			return
+		}
+
+		con, err := u.DbCon(&dbConInfo)
+		if err != nil {
+			fmt.Printf("Erro: %v", err)
+			f, errFile := os.OpenFile("fatal.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+			defer f.Close()
+			if errFile != nil {
+				fmt.Println("Erro: ", errFile)
+				time.Sleep(time.Second * 5)
+				return
+			}
+			fmt.Fprintf(f, "Erro: hey%v", err)
+			time.Sleep(time.Second * 5)
+			return
+		}
+		defer con.Close()
+
+		t0 := time.Now()
+
+		restoreQty, err := databases.Restore(con, &backupFileList)
+		if err != nil {
+			fmt.Printf("Erro: %v", err)
+			f, errFile := os.OpenFile("restoreDatabase.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+			defer f.Close()
+			if errFile != nil {
+				fmt.Printf("Erro: %v\n", errFile)
+				time.Sleep(time.Second * 5)
+				return
+			}
+			fmt.Fprintf(f, "Erro: %v", err)
+			time.Sleep(time.Second * 5)
+			return
+		}
+
+		f, errFile := os.OpenFile("restoreDatabase.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+		defer f.Close()
+		if errFile != nil {
+			fmt.Printf("Erro: %v\n", errFile)
+			time.Sleep(time.Second * 5)
+			return
+		}
+		fmt.Fprintf(f, "-------------------//-------------------//-------------------//-------------------")
+		fmt.Fprintf(f, "\nData: %v", time.Now().Format("2006-01-02"))
+		fmt.Fprintf(f, "\nTotal de backups realizados: %v", restoreQty)
+		fmt.Fprintf(f, "\nLocal: %v", databases.Path)
+		fmt.Fprintf(f, "\nTempo total: %v", time.Since(t0))
+		fmt.Fprintf(f, "\n-------------------//-------------------//-------------------//-------------------\n")
+
 	default:
-		panic("Operação não autorizada")
+		f, err := os.OpenFile("fatal.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+		if err != nil {
+			fmt.Println("Erro: %v\n", err)
+			time.Sleep(time.Second * 5)
+			return
+		}
+		fmt.Fprintf(f, "Erro: Operação não autorizada:\n")
+		fmt.Println("Erro: Operação não autorizada:\n")
+		time.Sleep(time.Second * 5)
+		defer f.Close()
+		return
+
 	}
 
 }
