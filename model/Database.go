@@ -122,6 +122,7 @@ func (db Database) Restore(con *sql.DB, backupFileList *[]string) (int, error) {
 				log.Printf("Erro: %v Query: %v", err, query)
 				return 0, err
 			}
+
 			for dataFiles.Next() {
 				var dataFile = dataFile{"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""}
 

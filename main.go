@@ -244,12 +244,12 @@ func main() {
 	default:
 		f, err := os.OpenFile("fatal.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 		if err != nil {
-			fmt.Println("Erro: %v\n", err)
+			fmt.Printf("Erro: %v\n", err)
 			time.Sleep(time.Second * 5)
 			return
 		}
 		fmt.Fprintf(f, "Erro: Operação não autorizada:\n")
-		fmt.Println("Erro: Operação não autorizada:\n")
+		fmt.Printf("Erro: Operação não autorizada:\n")
 		time.Sleep(time.Second * 5)
 		defer f.Close()
 		return

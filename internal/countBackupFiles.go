@@ -2,6 +2,7 @@ package internal
 
 import (
 	"os"
+	"path/filepath"
 )
 
 func CountBackupFiles(path string) ([]string, error) {
@@ -11,7 +12,10 @@ func CountBackupFiles(path string) ([]string, error) {
 		return backups, err
 	}
 	for _, file := range dir {
-		backups = append(backups, file.Name())
+		if filepath.Ext(file.Name()) == ".bak" {
+			backups = append(backups, file.Name())
+		}
+
 	}
 
 	return backups, nil
