@@ -30,8 +30,6 @@ func ConnDb() (*sql.DB, error) {
 	decoder := json.NewDecoder(file)
 	decoder.Decode(&connInfo)
 
-	fmt.Println(connInfo)
-
 	queryParams := url.Values{}
 	queryParams.Add("database", connInfo.DbName)
 	queryParams.Add("encrypt", "disable")
