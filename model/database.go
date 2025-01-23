@@ -1,9 +1,9 @@
 package model
 
 type Database struct {
-	ID    string
-	Name  string
-	Files []DatabaseFile
+	ID    string         `json:"id" binding:"required"`
+	Name  string         `json:"name" binding:"required"`
+	Files []DatabaseFile `json:"files"`
 }
 
 type DatabaseFile struct {

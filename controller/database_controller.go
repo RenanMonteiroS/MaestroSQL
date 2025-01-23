@@ -1,8 +1,10 @@
 package controller
 
 import (
+	"fmt"
 	"net/http"
 
+	"github.com/RenanMonteiroS/MaestroSQLWeb/model"
 	"github.com/RenanMonteiroS/MaestroSQLWeb/service"
 	"github.com/gin-gonic/gin"
 )
@@ -23,5 +25,30 @@ func (dc DatabaseController) GetDatabases(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, databases)
+	return
+}
+
+func (dc DatabaseController) BackupDatabase(ctx *gin.Context) {
+	type PostRequired struct {
+		Databases []model.Database `json:"databases" binding:"required"`
+		Path      string           `json:"path" binding:"required"`
+	}
+
+	var postData PostRequired
+
+	fmt.Println("teste")
+	err := ctx.BindJSON(&postData)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, err)
+		return
+	}
+
+	databaseBackupList, err := dc.service.BackupDatabase(postData.Databases, postData.Path)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, err)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, databaseBackupList)
 	return
 }

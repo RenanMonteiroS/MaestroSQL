@@ -13,7 +13,7 @@ func NewDatabaseService(rp repository.DatabaseRepository) DatabaseService {
 	return DatabaseService{repository: rp}
 }
 
-func (ds DatabaseService) GetDatabases() ([]model.Database, error) {
+func (ds *DatabaseService) GetDatabases() ([]model.Database, error) {
 	dbListAux, err := ds.repository.GetDatabases()
 	if err != nil {
 		return []model.Database{}, err
@@ -45,4 +45,13 @@ func (ds DatabaseService) GetDatabases() ([]model.Database, error) {
 	}
 
 	return dbList, nil
+}
+
+func (ds *DatabaseService) BackupDatabase(backupDbList []model.Database, backupPath string) ([]model.Database, error) {
+	backupDbList, err := ds.repository.BackupDatabase(backupDbList, backupPath)
+	if err != nil {
+		return []model.Database{}, err
+	}
+
+	return backupDbList, nil
 }

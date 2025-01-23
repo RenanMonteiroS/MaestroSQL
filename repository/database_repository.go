@@ -2,6 +2,8 @@ package repository
 
 import (
 	"database/sql"
+	"fmt"
+	"time"
 
 	"github.com/RenanMonteiroS/MaestroSQLWeb/model"
 )
@@ -16,7 +18,7 @@ func NewDatabaseRepository(connection *sql.DB) DatabaseRepository {
 	}
 }
 
-func (dr DatabaseRepository) GetDatabases() ([]model.MergedDatabaseFileInfo, error) {
+func (dr *DatabaseRepository) GetDatabases() ([]model.MergedDatabaseFileInfo, error) {
 	query := "SELECT d.database_id, d.name DatabaseName, " +
 		"f.name LogicalName, f.physical_name AS PhysicalName, f.type_desc TypeofFile " +
 		"FROM sys.master_files f " +
@@ -45,12 +47,18 @@ func (dr DatabaseRepository) GetDatabases() ([]model.MergedDatabaseFileInfo, err
 	return dbListAux, nil
 }
 
-/* func (dr DatabaseRepository) BackupDatabase() ([]model.Database, error){
-	query := "SELECT d.database_id, d.name DatabaseName, " +
-		"f.name LogicalName, f.physical_name AS PhysicalName, f.type_desc TypeofFile " +
-		"FROM sys.master_files f " +
-		"INNER JOIN sys.databases " +
-		"d ON d.database_id = f.database_id;"
+func (dr *DatabaseRepository) BackupDatabase(backupDbList []model.Database, backupPath string) ([]model.Database, error) {
+	var query string
 
-	dr.connection.Query()
-} */
+	for _, value := range backupDbList {
+		query += fmt.Sprintf("BACKUP DATABASE %s TO DISK = '%s/%s=%v_%v.bak'; ", value.Name, backupPath, value.Name, time.Now().Format("2006-01-02"), time.Now().Format("15-04-05"))
+	}
+	fmt.Println(query)
+	_, err := dr.connection.Query(query)
+	if err != nil {
+		return []model.Database{}, err
+	}
+
+	return backupDbList, nil
+
+}
