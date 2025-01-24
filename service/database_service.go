@@ -25,6 +25,7 @@ func (ds *DatabaseService) GetDatabases() ([]model.Database, error) {
 	var found bool
 
 	for _, dbData := range dbListAux {
+		dbObj = model.Database{}
 		dbObj.ID = dbData.DatabaseId
 		dbObj.Name = dbData.DatabaseName
 
@@ -34,11 +35,14 @@ func (ds *DatabaseService) GetDatabases() ([]model.Database, error) {
 				dbFile.LogicalName = dbData.LogicalName
 				dbFile.PhysicalName = dbData.PhysicalName
 				dbFile.FileType = dbData.File_type
-
 				dbList[key].Files = append(dbList[key].Files, dbFile)
 			}
 		}
 		if found != true {
+			dbFile.LogicalName = dbData.LogicalName
+			dbFile.PhysicalName = dbData.PhysicalName
+			dbFile.FileType = dbData.File_type
+			dbObj.Files = append(dbObj.Files, dbFile)
 			dbList = append(dbList, dbObj)
 		}
 		found = false

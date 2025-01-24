@@ -1,7 +1,7 @@
 package model
 
 type Database struct {
-	ID    string         `json:"id" binding:"required"`
+	ID    string         `json:"id"`
 	Name  string         `json:"name" binding:"required"`
 	Files []DatabaseFile `json:"files"`
 }

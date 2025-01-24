@@ -53,7 +53,7 @@ func (dr *DatabaseRepository) BackupDatabase(backupDbList []model.Database, back
 	for _, value := range backupDbList {
 		query += fmt.Sprintf("BACKUP DATABASE %s TO DISK = '%s/%s=%v_%v.bak'; ", value.Name, backupPath, value.Name, time.Now().Format("2006-01-02"), time.Now().Format("15-04-05"))
 	}
-	fmt.Println(query)
+
 	_, err := dr.connection.Query(query)
 	if err != nil {
 		return []model.Database{}, err
