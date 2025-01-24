@@ -1,6 +1,10 @@
 package service
 
 import (
+	"fmt"
+	"os"
+	"path/filepath"
+
 	"github.com/RenanMonteiroS/MaestroSQLWeb/model"
 	"github.com/RenanMonteiroS/MaestroSQLWeb/repository"
 )
@@ -58,4 +62,60 @@ func (ds *DatabaseService) BackupDatabase(backupDbList []model.Database, backupP
 	}
 
 	return backupDbList, nil
+}
+
+func (ds *DatabaseService) RestoreDatabase(backupFilesPath string) ([]model.Database, error) {
+	var backupsFullPathList []string
+
+	var restoreDatabase model.Database
+	var restoreDatabaseList []model.Database
+	var databaseFile model.DatabaseFile
+
+	dir, err := os.ReadDir(backupFilesPath)
+	if err != nil {
+		return []model.Database{}, err
+	}
+
+	for _, file := range dir {
+		if filepath.Ext(file.Name()) == ".bak" || filepath.Ext(file.Name()) == ".BAK" {
+			backupsFullPathList = append(backupsFullPathList, fmt.Sprintf("%s%s", backupFilesPath, file.Name()))
+		}
+	}
+
+	backupFilesData, err := ds.repository.GetBackupFilesData(backupsFullPathList)
+	if err != nil {
+		return []model.Database{}, err
+	}
+
+	for _, backupFileData := range backupFilesData {
+		fmt.Println(backupFileData)
+		restoreDatabase.Name = backupFileData.Name
+		for _, backupFileInfo := range backupFileData.BackupFileInfo {
+			if backupFileInfo.FileType == "D" {
+				databaseFile.FileType = "ROWS"
+				databaseFile.LogicalName = backupFileInfo.LogicalName
+				restoreDatabase.Files = append(restoreDatabase.Files, databaseFile)
+			} else if backupFileInfo.FileType == "L" {
+				databaseFile.FileType = "LOG"
+				databaseFile.LogicalName = backupFileInfo.LogicalName
+
+				restoreDatabase.Files = append(restoreDatabase.Files, databaseFile)
+			}
+		}
+		restoreDatabaseList = append(restoreDatabaseList, restoreDatabase)
+	}
+
+	dataPath, logPath, err := ds.repository.GetDefaultFilesPath()
+	if err != nil {
+		fmt.Println(err)
+		return []model.Database{}, err
+	}
+
+	restoredDatabases, err := ds.repository.RestoreDatabase(restoreDatabaseList, backupFilesPath, dataPath, logPath)
+	if err != nil {
+		return []model.Database{}, err
+	}
+
+	return restoredDatabases, nil
+
 }

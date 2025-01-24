@@ -27,6 +27,8 @@ func main() {
 
 	server.POST("/backup", DatabaseController.BackupDatabase)
 
+	server.POST("/restore", DatabaseController.RestoreDatabase)
+
 	server.GET("/ping", func(ctx *gin.Context) {
 		ctx.JSON(200, gin.H{
 			"message": "Pong",

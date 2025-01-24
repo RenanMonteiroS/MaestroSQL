@@ -16,7 +16,7 @@ func NewDatabaseController(sv service.DatabaseService) DatabaseController {
 	return DatabaseController{service: sv}
 }
 
-func (dc DatabaseController) GetDatabases(ctx *gin.Context) {
+func (dc *DatabaseController) GetDatabases(ctx *gin.Context) {
 	databases, err := dc.service.GetDatabases()
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, err)
@@ -27,7 +27,7 @@ func (dc DatabaseController) GetDatabases(ctx *gin.Context) {
 	return
 }
 
-func (dc DatabaseController) BackupDatabase(ctx *gin.Context) {
+func (dc *DatabaseController) BackupDatabase(ctx *gin.Context) {
 
 	type PostRequired struct {
 		Databases []model.Database `json:"databases" binding:"required"`
@@ -44,10 +44,30 @@ func (dc DatabaseController) BackupDatabase(ctx *gin.Context) {
 
 	databaseBackupList, err := dc.service.BackupDatabase(postData.Databases, postData.Path)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, err)
+		ctx.JSON(http.StatusBadGateway, err)
 		return
 	}
 
 	ctx.JSON(http.StatusOK, databaseBackupList)
+	return
+}
+
+func (dc *DatabaseController) RestoreDatabase(ctx *gin.Context) {
+
+	var backupFiles model.BackupFiles
+
+	err := ctx.BindJSON(&backupFiles)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, err)
+		return
+	}
+
+	restoredDatabases, err := dc.service.RestoreDatabase(backupFiles.Path)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, err)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, restoredDatabases)
 	return
 }
