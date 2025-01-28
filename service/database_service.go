@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/RenanMonteiroS/MaestroSQLWeb/model"
 	"github.com/RenanMonteiroS/MaestroSQLWeb/repository"
@@ -64,16 +65,18 @@ func (ds *DatabaseService) BackupDatabase(backupDbList []model.Database, backupP
 	return backupDbList, nil
 }
 
-func (ds *DatabaseService) RestoreDatabase(backupFilesPath string) ([]model.Database, error) {
+func (ds *DatabaseService) RestoreDatabase(backupFilesPath string) ([]model.RestoreDb, error) {
 	var backupsFullPathList []string
 
-	var restoreDatabase model.Database
-	var restoreDatabaseList []model.Database
+	//var found bool
+
+	var database model.RestoreDb
+	var restoreDatabaseList []model.RestoreDb
 	var databaseFile model.DatabaseFile
 
 	dir, err := os.ReadDir(backupFilesPath)
 	if err != nil {
-		return []model.Database{}, err
+		return []model.RestoreDb{}, err
 	}
 
 	for _, file := range dir {
@@ -84,36 +87,51 @@ func (ds *DatabaseService) RestoreDatabase(backupFilesPath string) ([]model.Data
 
 	backupFilesData, err := ds.repository.GetBackupFilesData(backupsFullPathList)
 	if err != nil {
-		return []model.Database{}, err
+		return []model.RestoreDb{}, err
 	}
 
 	for _, backupFileData := range backupFilesData {
-		fmt.Println(backupFileData)
-		restoreDatabase.Name = backupFileData.Name
+		database.Database.Name = strings.Split(backupFileData.Name, ".bak")[0]
+		database.BackupPath = backupFileData.BackupFilePath
+
 		for _, backupFileInfo := range backupFileData.BackupFileInfo {
 			if backupFileInfo.FileType == "D" {
 				databaseFile.FileType = "ROWS"
 				databaseFile.LogicalName = backupFileInfo.LogicalName
-				restoreDatabase.Files = append(restoreDatabase.Files, databaseFile)
+				databaseFile.PhysicalName = backupFileInfo.PhysicalName
+
+				database.Database.Files = append(database.Database.Files, databaseFile)
 			} else if backupFileInfo.FileType == "L" {
 				databaseFile.FileType = "LOG"
 				databaseFile.LogicalName = backupFileInfo.LogicalName
+				databaseFile.PhysicalName = backupFileInfo.PhysicalName
 
-				restoreDatabase.Files = append(restoreDatabase.Files, databaseFile)
+				database.Database.Files = append(database.Database.Files, databaseFile)
 			}
+
 		}
-		restoreDatabaseList = append(restoreDatabaseList, restoreDatabase)
+
+		if len(restoreDatabaseList) > 0 {
+			if database.Database.Name == restoreDatabaseList[len(restoreDatabaseList)-1].Database.Name {
+				restoreDatabaseList[len(restoreDatabaseList)-1] = database
+			} else {
+				restoreDatabaseList = append(restoreDatabaseList, database)
+			}
+		} else {
+			restoreDatabaseList = append(restoreDatabaseList, database)
+		}
+
+		database = model.RestoreDb{}
 	}
 
 	dataPath, logPath, err := ds.repository.GetDefaultFilesPath()
 	if err != nil {
-		fmt.Println(err)
-		return []model.Database{}, err
+		return []model.RestoreDb{}, err
 	}
 
-	restoredDatabases, err := ds.repository.RestoreDatabase(restoreDatabaseList, backupFilesPath, dataPath, logPath)
+	restoredDatabases, err := ds.repository.RestoreDatabase(restoreDatabaseList, dataPath, logPath)
 	if err != nil {
-		return []model.Database{}, err
+		return []model.RestoreDb{}, err
 	}
 
 	return restoredDatabases, nil

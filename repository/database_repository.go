@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/RenanMonteiroS/MaestroSQLWeb/model"
@@ -64,24 +65,31 @@ func (dr *DatabaseRepository) BackupDatabase(backupDbList []model.Database, back
 
 }
 
-func (dr *DatabaseRepository) RestoreDatabase(restoreDbList []model.Database, backupPath string, dataPath string, logPath string) ([]model.Database, error) {
+func (dr *DatabaseRepository) RestoreDatabase(restoreDbList []model.RestoreDb, dataPath string, logPath string) ([]model.RestoreDb, error) {
 	var query string
-	fmt.Println(restoreDbList)
+
 	for _, db := range restoreDbList {
-		query += fmt.Sprintf("RESTORE DATABASE [%s] FROM DISK = '%s' WITH ", db.Name, backupPath)
-		for _, file := range db.Files {
+
+		query += fmt.Sprintf("RESTORE DATABASE [%s] FROM DISK = '%s' WITH ", db.Database.Name, db.BackupPath)
+		for _, file := range db.Database.Files {
 			if file.FileType == "ROWS" {
-				query += fmt.Sprintf("MOVE '%s' TO '%s%s.mdf' , ", file.LogicalName, dataPath, db.Name)
+				if strings.Contains(file.PhysicalName, ".mdf") {
+					query += fmt.Sprintf("MOVE '%s' TO '%s%s.mdf' , ", file.LogicalName, dataPath, db.Database.Name)
+				} else if strings.Contains(file.PhysicalName, ".ndf") {
+					query += fmt.Sprintf("MOVE '%s' TO '%s%s.ndf' , ", file.LogicalName, dataPath, db.Database.Name)
+				}
+
 			} else if file.FileType == "LOG" {
-				query += fmt.Sprintf("MOVE '%s' TO '%s%s.ldf' , ", file.LogicalName, logPath, db.Name)
+				query += fmt.Sprintf("MOVE '%s' TO '%s%s.ldf' , ", file.LogicalName, logPath, db.Database.Name)
 			}
 		}
+		query += "RECOVERY;"
 	}
-	query += "RECOVERY;"
-	fmt.Println(query)
+
 	_, err := dr.connection.Query(query)
+	fmt.Println(query)
 	if err != nil {
-		return []model.Database{}, err
+		return []model.RestoreDb{}, err
 	}
 
 	return restoreDbList, nil
@@ -128,19 +136,29 @@ func (dr *DatabaseRepository) GetBackupFilesData(backupFiles []string) ([]model.
 			err = rows.Scan(&restoreDatabaseInfo.LogicalName, &restoreDatabaseInfo.PhysicalName, &restoreDatabaseInfo.FileType, &restoreDatabaseInfo.FileGroupName,
 				&restoreDatabaseInfo.Size, &restoreDatabaseInfo.MaxSize, &restoreDatabaseInfo.FileId, &restoreDatabaseInfo.CreateLSN, &restoreDatabaseInfo.DropLSN,
 				&restoreDatabaseInfo.UniqueId, &restoreDatabaseInfo.ReadOnlyLSN, &restoreDatabaseInfo.ReadWriteLSN, &restoreDatabaseInfo.BackupSizeInBytes,
-				&restoreDatabaseInfo.SourceBlockSize, &restoreDatabaseInfo.SourceBlockSize, &restoreDatabaseInfo.FileGroupId, &restoreDatabaseInfo.LogGroupGUID,
-				&restoreDatabaseInfo.DifferentialBaseLSN, &restoreDatabaseInfo.IsReadOnly, &restoreDatabaseInfo.IsPresent, &restoreDatabaseInfo.TDEThumbprint,
+				&restoreDatabaseInfo.SourceBlockSize, &restoreDatabaseInfo.FileGroupId, &restoreDatabaseInfo.LogGroupGUID, &restoreDatabaseInfo.DifferentialBaseLSN,
+				&restoreDatabaseInfo.DifferentialBaseGUID, &restoreDatabaseInfo.IsReadOnly, &restoreDatabaseInfo.IsPresent, &restoreDatabaseInfo.TDEThumbprint,
 				&restoreDatabaseInfo.SnapshotUrl)
 			if err != nil {
-				fmt.Println(err)
 				return []model.DatabaseFromBackupFile{}, err
 			}
-			fmt.Println(restoreDatabaseInfo)
 			restoreDatabase.Name = filepath.Base(backupFile)
+			restoreDatabase.BackupFilePath = backupFile
+
 			restoreDatabase.BackupFileInfo = append(restoreDatabase.BackupFileInfo, restoreDatabaseInfo)
 
-			restoreDatabaseInfoList = append(restoreDatabaseInfoList, restoreDatabase)
+			if len(restoreDatabaseInfoList) > 0 {
+				if restoreDatabaseInfoList[len(restoreDatabaseInfoList)-1].Name == restoreDatabase.Name {
+					restoreDatabaseInfoList[len(restoreDatabaseInfoList)-1] = restoreDatabase
+				} else {
+					restoreDatabaseInfoList = append(restoreDatabaseInfoList, restoreDatabase)
+				}
+			} else {
+				restoreDatabaseInfoList = append(restoreDatabaseInfoList, restoreDatabase)
+			}
+
 		}
+		restoreDatabase = model.DatabaseFromBackupFile{}
 
 	}
 

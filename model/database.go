@@ -35,9 +35,9 @@ type BackupDataFile struct {
 	ReadWriteLSN         string
 	BackupSizeInBytes    string
 	SourceBlockSize      string
-	FileGroupId          *string
+	FileGroupId          string
 	LogGroupGUID         *string
-	DifferentialBaseLSN  *string
+	DifferentialBaseLSN  string
 	DifferentialBaseGUID string
 	IsReadOnly           string
 	IsPresent            string
@@ -47,9 +47,15 @@ type BackupDataFile struct {
 
 type DatabaseFromBackupFile struct {
 	Name           string
+	BackupFilePath string
 	BackupFileInfo []BackupDataFile
 }
 
 type BackupFiles struct {
 	Path string `json:"backupFilesPath"`
+}
+
+type RestoreDb struct {
+	BackupPath string
+	Database   Database
 }
