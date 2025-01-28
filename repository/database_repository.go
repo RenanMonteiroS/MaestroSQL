@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/RenanMonteiroS/MaestroSQLWeb/model"
@@ -52,14 +53,46 @@ func (dr *DatabaseRepository) GetDatabases() ([]model.MergedDatabaseFileInfo, er
 func (dr *DatabaseRepository) BackupDatabase(backupDbList []model.Database, backupPath string) ([]model.Database, error) {
 	var query string
 
-	for _, value := range backupDbList {
-		query += fmt.Sprintf("BACKUP DATABASE %s TO DISK = '%s/%s=%v_%v.bak'; ", value.Name, backupPath, value.Name, time.Now().Format("2006-01-02"), time.Now().Format("15-04-05"))
+	//var dbDoneList []model.Database
+
+	var wg sync.WaitGroup
+	//chann := make(chan model.Database)
+	//var channList []chan model.Database
+
+	var channList []chan string
+
+	for _, db := range backupDbList {
+		wg.Add(1)
+		go func(wg *sync.WaitGroup, db *model.Database, channList *[]chan string) {
+			defer wg.Done()
+
+			chann := make(chan string)
+
+			query = fmt.Sprintf("BACKUP DATABASE %s TO DISK = '%s/%s=%v_%v.bak'; ", db.Name, backupPath, db.Name, time.Now().Format("2006-01-02"), time.Now().Format("15-04-05"))
+			fmt.Println("Teste")
+
+			_, err := dr.connection.Query(query)
+			if err != nil {
+				return
+			}
+			fmt.Println("Teste2")
+
+			//chann <- *db
+			chann <- "a"
+			fmt.Println("Teste3")
+			*channList = append(*channList, chann)
+			fmt.Println("Teste4")
+
+			return
+		}(&wg, &db, &channList)
+
 	}
 
-	_, err := dr.connection.Query(query)
-	if err != nil {
-		return []model.Database{}, err
-	}
+	wg.Wait()
+
+	/* for key, chann := range channList {
+		dbDoneList[key] = <- chann
+	} */
 
 	return backupDbList, nil
 

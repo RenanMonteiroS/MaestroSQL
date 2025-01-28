@@ -80,8 +80,10 @@ func (ds *DatabaseService) RestoreDatabase(backupFilesPath string) ([]model.Rest
 	}
 
 	for _, file := range dir {
-		if filepath.Ext(file.Name()) == ".bak" || filepath.Ext(file.Name()) == ".BAK" {
+		if filepath.Ext(file.Name()) == ".bak" {
 			backupsFullPathList = append(backupsFullPathList, fmt.Sprintf("%s%s", backupFilesPath, file.Name()))
+		} else if filepath.Ext(file.Name()) == ".BAK" {
+			backupsFullPathList = append(backupsFullPathList, fmt.Sprintf("%s%s", backupFilesPath, strings.Split(file.Name(), ".BAK")[0])+".bak")
 		}
 	}
 
