@@ -65,7 +65,7 @@ func (ds *DatabaseService) BackupDatabase(backupDbList *[]model.Database, backup
 	return backupDbDoneList, nil
 }
 
-func (ds *DatabaseService) RestoreDatabase(backupFilesPath string) ([]model.RestoreDb, error) {
+func (ds *DatabaseService) RestoreDatabase(backupFilesPath string) (*[]model.RestoreDb, error) {
 	var backupsFullPathList []string
 
 	//var found bool
@@ -76,7 +76,7 @@ func (ds *DatabaseService) RestoreDatabase(backupFilesPath string) ([]model.Rest
 
 	dir, err := os.ReadDir(backupFilesPath)
 	if err != nil {
-		return []model.RestoreDb{}, err
+		return nil, err
 	}
 
 	for _, file := range dir {
@@ -89,7 +89,7 @@ func (ds *DatabaseService) RestoreDatabase(backupFilesPath string) ([]model.Rest
 
 	backupFilesData, err := ds.repository.GetBackupFilesData(&backupsFullPathList)
 	if err != nil {
-		return []model.RestoreDb{}, err
+		return nil, err
 	}
 
 	for _, backupFileData := range *backupFilesData {
@@ -128,12 +128,12 @@ func (ds *DatabaseService) RestoreDatabase(backupFilesPath string) ([]model.Rest
 
 	dataPath, logPath, err := ds.repository.GetDefaultFilesPath()
 	if err != nil {
-		return []model.RestoreDb{}, err
+		return nil, err
 	}
 
-	restoredDatabases, err := ds.repository.RestoreDatabase(restoreDatabaseList, dataPath, logPath)
+	restoredDatabases, err := ds.repository.RestoreDatabase(&restoreDatabaseList, dataPath, logPath)
 	if err != nil {
-		return []model.RestoreDb{}, err
+		return nil, err
 	}
 
 	return restoredDatabases, nil

@@ -68,6 +68,6 @@ func (dc *DatabaseController) RestoreDatabase(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, restoredDatabases)
+	ctx.JSON(http.StatusOK, *restoredDatabases)
 	return
 }

@@ -90,33 +90,57 @@ func (dr *DatabaseRepository) BackupDatabase(backupDbList *[]model.Database, bac
 
 }
 
-func (dr *DatabaseRepository) RestoreDatabase(restoreDbList []model.RestoreDb, dataPath string, logPath string) ([]model.RestoreDb, error) {
-	var query string
+func (dr *DatabaseRepository) RestoreDatabase(restoreDbList *[]model.RestoreDb, dataPath string, logPath string) (*[]model.RestoreDb, error) {
 
-	for _, db := range restoreDbList {
+	var restoreDoneDbList []model.RestoreDb
 
-		query += fmt.Sprintf("RESTORE DATABASE [%s] FROM DISK = '%s' WITH ", db.Database.Name, db.BackupPath)
-		for _, file := range db.Database.Files {
-			if file.FileType == "ROWS" {
-				if strings.Contains(file.PhysicalName, ".mdf") {
-					query += fmt.Sprintf("MOVE '%s' TO '%s%s.mdf' , ", file.LogicalName, dataPath, db.Database.Name)
-				} else if strings.Contains(file.PhysicalName, ".ndf") {
-					query += fmt.Sprintf("MOVE '%s' TO '%s%s.ndf' , ", file.LogicalName, dataPath, db.Database.Name)
+	var wg sync.WaitGroup
+	ch := make(chan model.RestoreDb)
+
+	for _, db := range *restoreDbList {
+		wg.Add(1)
+		go func(db model.RestoreDb, wg *sync.WaitGroup, ch chan model.RestoreDb) {
+			defer wg.Done()
+
+			var query string
+
+			query = fmt.Sprintf("RESTORE DATABASE [%s] FROM DISK = '%s' WITH ", db.Database.Name, db.BackupPath)
+			for _, file := range db.Database.Files {
+				if file.FileType == "ROWS" {
+					if strings.Contains(file.PhysicalName, ".mdf") {
+						query += fmt.Sprintf("MOVE '%s' TO '%s%s.mdf' , ", file.LogicalName, dataPath, db.Database.Name)
+					} else if strings.Contains(file.PhysicalName, ".ndf") {
+						query += fmt.Sprintf("MOVE '%s' TO '%s%s.ndf' , ", file.LogicalName, dataPath, db.Database.Name)
+					}
+
+				} else if file.FileType == "LOG" {
+					query += fmt.Sprintf("MOVE '%s' TO '%s%s.ldf' , ", file.LogicalName, logPath, db.Database.Name)
 				}
-
-			} else if file.FileType == "LOG" {
-				query += fmt.Sprintf("MOVE '%s' TO '%s%s.ldf' , ", file.LogicalName, logPath, db.Database.Name)
 			}
-		}
-		query += "RECOVERY;"
+			query += "RECOVERY;"
+			_, err := dr.connection.Query(query)
+			if err != nil {
+				return
+			}
+
+			ch <- db
+
+			return
+
+		}(db, &wg, ch)
+
 	}
 
-	_, err := dr.connection.Query(query)
-	if err != nil {
-		return []model.RestoreDb{}, err
+	go func() {
+		wg.Wait()
+		close(ch)
+	}()
+
+	for doneDb := range ch {
+		restoreDoneDbList = append(restoreDoneDbList, doneDb)
 	}
 
-	return restoreDbList, nil
+	return &restoreDoneDbList, nil
 
 }
 
