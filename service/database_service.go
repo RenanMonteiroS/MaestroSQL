@@ -18,10 +18,10 @@ func NewDatabaseService(rp repository.DatabaseRepository) DatabaseService {
 	return DatabaseService{repository: rp}
 }
 
-func (ds *DatabaseService) GetDatabases() ([]model.Database, error) {
+func (ds *DatabaseService) GetDatabases() (*[]model.Database, error) {
 	dbListAux, err := ds.repository.GetDatabases()
 	if err != nil {
-		return []model.Database{}, err
+		return nil, err
 	}
 
 	var dbObj model.Database
@@ -29,7 +29,7 @@ func (ds *DatabaseService) GetDatabases() ([]model.Database, error) {
 	var dbList []model.Database
 	var found bool
 
-	for _, dbData := range dbListAux {
+	for _, dbData := range *dbListAux {
 		dbObj = model.Database{}
 		dbObj.ID = dbData.DatabaseId
 		dbObj.Name = dbData.DatabaseName
@@ -53,16 +53,16 @@ func (ds *DatabaseService) GetDatabases() ([]model.Database, error) {
 		found = false
 	}
 
-	return dbList, nil
+	return &dbList, nil
 }
 
-func (ds *DatabaseService) BackupDatabase(backupDbList []model.Database, backupPath string) ([]model.Database, error) {
-	backupDbList, err := ds.repository.BackupDatabase(backupDbList, backupPath)
+func (ds *DatabaseService) BackupDatabase(backupDbList *[]model.Database, backupPath string) (*[]model.Database, error) {
+	backupDbDoneList, err := ds.repository.BackupDatabase(backupDbList, backupPath)
 	if err != nil {
-		return []model.Database{}, err
+		return nil, err
 	}
 
-	return backupDbList, nil
+	return backupDbDoneList, nil
 }
 
 func (ds *DatabaseService) RestoreDatabase(backupFilesPath string) ([]model.RestoreDb, error) {
@@ -87,12 +87,12 @@ func (ds *DatabaseService) RestoreDatabase(backupFilesPath string) ([]model.Rest
 		}
 	}
 
-	backupFilesData, err := ds.repository.GetBackupFilesData(backupsFullPathList)
+	backupFilesData, err := ds.repository.GetBackupFilesData(&backupsFullPathList)
 	if err != nil {
 		return []model.RestoreDb{}, err
 	}
 
-	for _, backupFileData := range backupFilesData {
+	for _, backupFileData := range *backupFilesData {
 		database.Database.Name = strings.Split(backupFileData.Name, ".bak")[0]
 		database.BackupPath = backupFileData.BackupFilePath
 

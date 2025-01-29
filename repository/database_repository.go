@@ -21,7 +21,7 @@ func NewDatabaseRepository(connection *sql.DB) DatabaseRepository {
 	}
 }
 
-func (dr *DatabaseRepository) GetDatabases() ([]model.MergedDatabaseFileInfo, error) {
+func (dr *DatabaseRepository) GetDatabases() (*[]model.MergedDatabaseFileInfo, error) {
 	query := "SELECT d.database_id, d.name DatabaseName, " +
 		"f.name LogicalName, f.physical_name AS PhysicalName, f.type_desc TypeofFile " +
 		"FROM sys.master_files f " +
@@ -30,7 +30,7 @@ func (dr *DatabaseRepository) GetDatabases() ([]model.MergedDatabaseFileInfo, er
 
 	rows, err := dr.connection.Query(query)
 	if err != nil {
-		return []model.MergedDatabaseFileInfo{}, err
+		return nil, err
 	}
 
 	var dbObjAux model.MergedDatabaseFileInfo
@@ -41,23 +41,23 @@ func (dr *DatabaseRepository) GetDatabases() ([]model.MergedDatabaseFileInfo, er
 			&dbObjAux.PhysicalName, &dbObjAux.File_type)
 
 		if err != nil {
-			return []model.MergedDatabaseFileInfo{}, err
+			return nil, err
 		}
 
 		dbListAux = append(dbListAux, dbObjAux)
 	}
 
-	return dbListAux, nil
+	return &dbListAux, nil
 }
 
-func (dr *DatabaseRepository) BackupDatabase(backupDbList []model.Database, backupPath string) ([]model.Database, error) {
+func (dr *DatabaseRepository) BackupDatabase(backupDbList *[]model.Database, backupPath string) (*[]model.Database, error) {
 
 	var wg sync.WaitGroup
 	ch := make(chan model.Database)
 
 	var dbDoneList []model.Database
 
-	for _, db := range backupDbList {
+	for _, db := range *backupDbList {
 		wg.Add(1)
 		go func(db *model.Database, connection *sql.DB, wg *sync.WaitGroup, ch chan model.Database) {
 			defer wg.Done()
@@ -86,7 +86,7 @@ func (dr *DatabaseRepository) BackupDatabase(backupDbList []model.Database, back
 		dbDoneList = append(dbDoneList, db)
 	}
 
-	return dbDoneList, nil
+	return &dbDoneList, nil
 
 }
 
@@ -140,7 +140,7 @@ func (dr *DatabaseRepository) GetDefaultFilesPath() (string, string, error) {
 	return dataPath, logPath, nil
 }
 
-func (dr *DatabaseRepository) GetBackupFilesData(backupFiles []string) ([]model.DatabaseFromBackupFile, error) {
+func (dr *DatabaseRepository) GetBackupFilesData(backupFiles *[]string) (*[]model.DatabaseFromBackupFile, error) {
 	var query string
 
 	var restoreDatabaseInfo model.BackupDataFile
@@ -148,12 +148,12 @@ func (dr *DatabaseRepository) GetBackupFilesData(backupFiles []string) ([]model.
 
 	var restoreDatabase model.DatabaseFromBackupFile
 
-	for _, backupFile := range backupFiles {
+	for _, backupFile := range *backupFiles {
 		query = fmt.Sprintf("RESTORE FILELISTONLY FROM DISK = '%s'; ", backupFile)
 
 		rows, err := dr.connection.Query(query)
 		if err != nil {
-			return []model.DatabaseFromBackupFile{}, err
+			return nil, err
 		}
 
 		for rows.Next() {
@@ -164,7 +164,7 @@ func (dr *DatabaseRepository) GetBackupFilesData(backupFiles []string) ([]model.
 				&restoreDatabaseInfo.DifferentialBaseGUID, &restoreDatabaseInfo.IsReadOnly, &restoreDatabaseInfo.IsPresent, &restoreDatabaseInfo.TDEThumbprint,
 				&restoreDatabaseInfo.SnapshotUrl)
 			if err != nil {
-				return []model.DatabaseFromBackupFile{}, err
+				return nil, err
 			}
 			restoreDatabase.Name = filepath.Base(backupFile)
 			restoreDatabase.BackupFilePath = backupFile
@@ -186,6 +186,6 @@ func (dr *DatabaseRepository) GetBackupFilesData(backupFiles []string) ([]model.
 
 	}
 
-	return restoreDatabaseInfoList, nil
+	return &restoreDatabaseInfoList, nil
 
 }

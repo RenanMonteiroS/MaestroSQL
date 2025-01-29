@@ -23,7 +23,7 @@ func (dc *DatabaseController) GetDatabases(ctx *gin.Context) {
 		return
 	}
 
-	ctx.JSON(http.StatusOK, databases)
+	ctx.JSON(http.StatusOK, *databases)
 	return
 }
 
@@ -42,13 +42,13 @@ func (dc *DatabaseController) BackupDatabase(ctx *gin.Context) {
 		return
 	}
 
-	databaseBackupList, err := dc.service.BackupDatabase(postData.Databases, postData.Path)
+	databaseBackupList, err := dc.service.BackupDatabase(&postData.Databases, postData.Path)
 	if err != nil {
 		ctx.JSON(http.StatusBadGateway, err)
 		return
 	}
 
-	ctx.JSON(http.StatusOK, databaseBackupList)
+	ctx.JSON(http.StatusOK, *databaseBackupList)
 	return
 }
 
