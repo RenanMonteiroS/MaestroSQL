@@ -18,6 +18,7 @@ func main() {
 		fmt.Printf("Error: %v", err)
 		return
 	}
+	defer conn.Close()
 
 	DatabaseRepository := repository.NewDatabaseRepository(conn)
 	DatabaseService := service.NewDatabaseService(DatabaseRepository)
@@ -28,12 +29,6 @@ func main() {
 	server.POST("/backup", DatabaseController.BackupDatabase)
 
 	server.POST("/restore", DatabaseController.RestoreDatabase)
-
-	server.GET("/ping", func(ctx *gin.Context) {
-		ctx.JSON(200, gin.H{
-			"message": "Pong",
-		})
-	})
 
 	server.Run(":8000")
 

@@ -51,50 +51,42 @@ func (dr *DatabaseRepository) GetDatabases() ([]model.MergedDatabaseFileInfo, er
 }
 
 func (dr *DatabaseRepository) BackupDatabase(backupDbList []model.Database, backupPath string) ([]model.Database, error) {
-	var query string
-
-	//var dbDoneList []model.Database
 
 	var wg sync.WaitGroup
-	//chann := make(chan model.Database)
-	//var channList []chan model.Database
+	ch := make(chan model.Database)
 
-	var channList []chan string
+	var dbDoneList []model.Database
 
 	for _, db := range backupDbList {
 		wg.Add(1)
-		go func(wg *sync.WaitGroup, db *model.Database, channList *[]chan string) {
+		go func(db *model.Database, connection *sql.DB, wg *sync.WaitGroup, ch chan model.Database) {
 			defer wg.Done()
 
-			chann := make(chan string)
-
+			var query string
 			query = fmt.Sprintf("BACKUP DATABASE %s TO DISK = '%s/%s=%v_%v.bak'; ", db.Name, backupPath, db.Name, time.Now().Format("2006-01-02"), time.Now().Format("15-04-05"))
-			fmt.Println("Teste")
 
-			_, err := dr.connection.Query(query)
+			_, err := connection.Query(query)
 			if err != nil {
 				return
 			}
-			fmt.Println("Teste2")
 
-			//chann <- *db
-			chann <- "a"
-			fmt.Println("Teste3")
-			*channList = append(*channList, chann)
-			fmt.Println("Teste4")
+			ch <- *db
 
 			return
-		}(&wg, &db, &channList)
+		}(&db, dr.connection, &wg, ch)
 
 	}
 
-	wg.Wait()
+	go func() {
+		wg.Wait()
+		close(ch)
+	}()
 
-	/* for key, chann := range channList {
-		dbDoneList[key] = <- chann
-	} */
+	for db := range ch {
+		dbDoneList = append(dbDoneList, db)
+	}
 
-	return backupDbList, nil
+	return dbDoneList, nil
 
 }
 
@@ -120,7 +112,6 @@ func (dr *DatabaseRepository) RestoreDatabase(restoreDbList []model.RestoreDb, d
 	}
 
 	_, err := dr.connection.Query(query)
-	fmt.Println(query)
 	if err != nil {
 		return []model.RestoreDb{}, err
 	}
