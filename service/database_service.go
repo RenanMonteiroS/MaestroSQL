@@ -18,7 +18,7 @@ func NewDatabaseService(rp repository.DatabaseRepository) DatabaseService {
 	return DatabaseService{repository: rp}
 }
 
-func (ds *DatabaseService) GetDatabases() (*[]model.Database, error) {
+func (ds *DatabaseService) GetDatabases() ([]model.Database, error) {
 	dbListAux, err := ds.repository.GetDatabases()
 	if err != nil {
 		return nil, err
@@ -53,19 +53,19 @@ func (ds *DatabaseService) GetDatabases() (*[]model.Database, error) {
 		found = false
 	}
 
-	return &dbList, nil
+	return dbList, nil
 }
 
-func (ds *DatabaseService) BackupDatabase(backupDbList []model.Database, backupPath string) ([]model.Database, error) {
-	backupDbDoneList, err := ds.repository.BackupDatabase(backupDbList, backupPath)
-	if err != nil {
-		return nil, err
+func (ds *DatabaseService) BackupDatabase(backupDbList []model.Database, backupPath string) ([]model.Database, []error) {
+	backupDbDoneList, errBackup := ds.repository.BackupDatabase(backupDbList, backupPath)
+	if errBackup != nil {
+		return backupDbDoneList, errBackup
 	}
 
 	return backupDbDoneList, nil
 }
 
-func (ds *DatabaseService) RestoreDatabase(backupFilesPath string) ([]model.RestoreDb, error) {
+func (ds *DatabaseService) RestoreDatabase(backupFilesPath string) ([]model.RestoreDb, []error, error) {
 	var backupsFullPathList []string
 
 	var database model.RestoreDb
@@ -74,7 +74,7 @@ func (ds *DatabaseService) RestoreDatabase(backupFilesPath string) ([]model.Rest
 
 	dir, err := os.ReadDir(backupFilesPath)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	for _, file := range dir {
@@ -87,7 +87,7 @@ func (ds *DatabaseService) RestoreDatabase(backupFilesPath string) ([]model.Rest
 
 	backupFilesData, err := ds.repository.GetBackupFilesData(backupsFullPathList)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	for _, backupFileData := range backupFilesData {
@@ -126,14 +126,14 @@ func (ds *DatabaseService) RestoreDatabase(backupFilesPath string) ([]model.Rest
 
 	dataPath, logPath, err := ds.repository.GetDefaultFilesPath()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	restoredDatabases, err := ds.repository.RestoreDatabase(restoreDatabaseList, dataPath, logPath)
-	if err != nil {
-		return nil, err
+	restoredDatabases, errRestoreList := ds.repository.RestoreDatabase(restoreDatabaseList, dataPath, logPath)
+	if errRestoreList != nil {
+		return restoredDatabases, errRestoreList, nil
 	}
 
-	return restoredDatabases, nil
+	return restoredDatabases, nil, nil
 
 }

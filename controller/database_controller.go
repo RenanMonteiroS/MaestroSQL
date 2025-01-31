@@ -43,9 +43,12 @@ func (dc *DatabaseController) BackupDatabase(ctx *gin.Context) {
 		return
 	}
 
-	databaseBackupList, err := dc.service.BackupDatabase(postData.Databases, postData.Path)
-	if err != nil {
-		ctx.JSON(http.StatusBadGateway, err)
+	databaseBackupList, errBackup := dc.service.BackupDatabase(postData.Databases, postData.Path)
+	if errBackup != nil && databaseBackupList != nil {
+		ctx.JSON(http.StatusInternalServerError, map[string]any{"msg": "Completed with errors.", "backupErrors": errBackup, "backupCompleted": databaseBackupList})
+		return
+	} else if errBackup != nil && databaseBackupList == nil {
+		ctx.JSON(http.StatusInternalServerError, map[string]any{"msg": "No backup was completed.", "backupErrors": errBackup})
 		return
 	}
 
@@ -63,10 +66,15 @@ func (dc *DatabaseController) RestoreDatabase(ctx *gin.Context) {
 		return
 	}
 
-	restoredDatabases, err := dc.service.RestoreDatabase(backupFiles.Path)
+	restoredDatabases, errRestore, err := dc.service.RestoreDatabase(backupFiles.Path)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, err)
 		return
+	}
+	if errRestore != nil && restoredDatabases != nil {
+		ctx.JSON(http.StatusInternalServerError, map[string]any{"msg": "Completed with errors.", "restoreErrors": errRestore, "restoreCompleted": restoredDatabases})
+	} else if errRestore != nil && restoredDatabases == nil {
+		ctx.JSON(http.StatusInternalServerError, map[string]any{"msg": "No restore was completed.", "restoreErrors": errRestore})
 	}
 
 	ctx.JSON(http.StatusOK, restoredDatabases)
