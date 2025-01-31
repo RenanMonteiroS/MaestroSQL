@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"path/filepath"
@@ -21,7 +22,7 @@ func NewDatabaseRepository(connection *sql.DB) DatabaseRepository {
 	}
 }
 
-func (dr *DatabaseRepository) GetDatabases() (*[]model.MergedDatabaseFileInfo, error) {
+func (dr *DatabaseRepository) GetDatabases() ([]model.MergedDatabaseFileInfo, error) {
 	query := "SELECT d.database_id, d.name DatabaseName, " +
 		"f.name LogicalName, f.physical_name AS PhysicalName, f.type_desc TypeofFile " +
 		"FROM sys.master_files f " +
@@ -47,38 +48,41 @@ func (dr *DatabaseRepository) GetDatabases() (*[]model.MergedDatabaseFileInfo, e
 		dbListAux = append(dbListAux, dbObjAux)
 	}
 
-	return &dbListAux, nil
+	return dbListAux, nil
 }
 
-func (dr *DatabaseRepository) BackupDatabase(backupDbList *[]model.Database, backupPath string) (*[]model.Database, error) {
+func (dr *DatabaseRepository) BackupDatabase(backupDbList []model.Database, backupPath string) ([]model.Database, error) {
 
 	var wg sync.WaitGroup
-	ch := make(chan model.Database)
+	ch := make(chan model.Database, len(backupDbList))
 
 	var dbDoneList []model.Database
 
-	for _, db := range *backupDbList {
+	for _, db := range backupDbList {
 		wg.Add(1)
-		go func(db *model.Database, connection *sql.DB, wg *sync.WaitGroup, ch chan model.Database) {
+		go func(wg *sync.WaitGroup) {
 			defer wg.Done()
+
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+			defer cancel()
 
 			query := fmt.Sprintf("BACKUP DATABASE [%s] TO DISK = @Path", db.Name)
 			path := fmt.Sprintf("%s/%s=%v_%v.bak", backupPath, db.Name, time.Now().Format("2006-01-02"), time.Now().Format("15-04-05"))
 
-			stmt, err := connection.Prepare(query)
+			stmt, err := dr.connection.Prepare(query)
 			if err != nil {
 				return
 			}
 
-			_, err = stmt.Exec(sql.Named("Path", path))
+			_, err = stmt.ExecContext(ctx, sql.Named("Path", path))
 			if err != nil {
 				return
 			}
 
-			ch <- *db
+			ch <- db
 
 			return
-		}(&db, dr.connection, &wg, ch)
+		}(&wg)
 
 	}
 
@@ -91,21 +95,24 @@ func (dr *DatabaseRepository) BackupDatabase(backupDbList *[]model.Database, bac
 		dbDoneList = append(dbDoneList, db)
 	}
 
-	return &dbDoneList, nil
+	return dbDoneList, nil
 
 }
 
-func (dr *DatabaseRepository) RestoreDatabase(restoreDbList *[]model.RestoreDb, dataPath string, logPath string) (*[]model.RestoreDb, error) {
+func (dr *DatabaseRepository) RestoreDatabase(restoreDbList []model.RestoreDb, dataPath string, logPath string) ([]model.RestoreDb, error) {
 
 	var restoreDoneDbList []model.RestoreDb
 
 	var wg sync.WaitGroup
-	ch := make(chan model.RestoreDb)
+	ch := make(chan model.RestoreDb, len(restoreDbList))
 
-	for _, db := range *restoreDbList {
+	for _, db := range restoreDbList {
 		wg.Add(1)
-		go func(db model.RestoreDb, wg *sync.WaitGroup, ch chan model.RestoreDb) {
+		go func(wg *sync.WaitGroup) {
 			defer wg.Done()
+
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+			defer cancel()
 
 			query := fmt.Sprintf("RESTORE DATABASE [%s] FROM DISK = @Path WITH ", db.Database.Name)
 			for _, file := range db.Database.Files {
@@ -126,7 +133,7 @@ func (dr *DatabaseRepository) RestoreDatabase(restoreDbList *[]model.RestoreDb, 
 			if err != nil {
 				return
 			}
-			_, err = stmt.Exec(sql.Named("Path", db.BackupPath))
+			_, err = stmt.ExecContext(ctx, sql.Named("Path", db.BackupPath))
 			if err != nil {
 				return
 			}
@@ -135,7 +142,7 @@ func (dr *DatabaseRepository) RestoreDatabase(restoreDbList *[]model.RestoreDb, 
 
 			return
 
-		}(db, &wg, ch)
+		}(&wg)
 
 	}
 
@@ -148,7 +155,7 @@ func (dr *DatabaseRepository) RestoreDatabase(restoreDbList *[]model.RestoreDb, 
 		restoreDoneDbList = append(restoreDoneDbList, doneDb)
 	}
 
-	return &restoreDoneDbList, nil
+	return restoreDoneDbList, nil
 
 }
 
@@ -182,13 +189,13 @@ func (dr *DatabaseRepository) GetDefaultFilesPath() (string, string, error) {
 	return dataPath, logPath, nil
 }
 
-func (dr *DatabaseRepository) GetBackupFilesData(backupFiles *[]string) (*[]model.DatabaseFromBackupFile, error) {
+func (dr *DatabaseRepository) GetBackupFilesData(backupFiles []string) ([]model.DatabaseFromBackupFile, error) {
 	var restoreDatabaseInfo model.BackupDataFile
 	var restoreDatabaseInfoList []model.DatabaseFromBackupFile
 
 	var restoreDatabase model.DatabaseFromBackupFile
 
-	for _, backupFile := range *backupFiles {
+	for _, backupFile := range backupFiles {
 		query := "RESTORE FILELISTONLY FROM DISK = @Path;"
 
 		stmt, err := dr.connection.Prepare(query)
@@ -231,6 +238,6 @@ func (dr *DatabaseRepository) GetBackupFilesData(backupFiles *[]string) (*[]mode
 
 	}
 
-	return &restoreDatabaseInfoList, nil
+	return restoreDatabaseInfoList, nil
 
 }

@@ -29,7 +29,7 @@ func (ds *DatabaseService) GetDatabases() (*[]model.Database, error) {
 	var dbList []model.Database
 	var found bool
 
-	for _, dbData := range *dbListAux {
+	for _, dbData := range dbListAux {
 		dbObj = model.Database{}
 		dbObj.ID = dbData.DatabaseId
 		dbObj.Name = dbData.DatabaseName
@@ -56,7 +56,7 @@ func (ds *DatabaseService) GetDatabases() (*[]model.Database, error) {
 	return &dbList, nil
 }
 
-func (ds *DatabaseService) BackupDatabase(backupDbList *[]model.Database, backupPath string) (*[]model.Database, error) {
+func (ds *DatabaseService) BackupDatabase(backupDbList []model.Database, backupPath string) ([]model.Database, error) {
 	backupDbDoneList, err := ds.repository.BackupDatabase(backupDbList, backupPath)
 	if err != nil {
 		return nil, err
@@ -65,10 +65,8 @@ func (ds *DatabaseService) BackupDatabase(backupDbList *[]model.Database, backup
 	return backupDbDoneList, nil
 }
 
-func (ds *DatabaseService) RestoreDatabase(backupFilesPath string) (*[]model.RestoreDb, error) {
+func (ds *DatabaseService) RestoreDatabase(backupFilesPath string) ([]model.RestoreDb, error) {
 	var backupsFullPathList []string
-
-	//var found bool
 
 	var database model.RestoreDb
 	var restoreDatabaseList []model.RestoreDb
@@ -87,12 +85,12 @@ func (ds *DatabaseService) RestoreDatabase(backupFilesPath string) (*[]model.Res
 		}
 	}
 
-	backupFilesData, err := ds.repository.GetBackupFilesData(&backupsFullPathList)
+	backupFilesData, err := ds.repository.GetBackupFilesData(backupsFullPathList)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, backupFileData := range *backupFilesData {
+	for _, backupFileData := range backupFilesData {
 		database.Database.Name = strings.Split(backupFileData.Name, ".bak")[0]
 		database.BackupPath = backupFileData.BackupFilePath
 
@@ -131,7 +129,7 @@ func (ds *DatabaseService) RestoreDatabase(backupFilesPath string) (*[]model.Res
 		return nil, err
 	}
 
-	restoredDatabases, err := ds.repository.RestoreDatabase(&restoreDatabaseList, dataPath, logPath)
+	restoredDatabases, err := ds.repository.RestoreDatabase(restoreDatabaseList, dataPath, logPath)
 	if err != nil {
 		return nil, err
 	}
