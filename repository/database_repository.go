@@ -62,10 +62,15 @@ func (dr *DatabaseRepository) BackupDatabase(backupDbList *[]model.Database, bac
 		go func(db *model.Database, connection *sql.DB, wg *sync.WaitGroup, ch chan model.Database) {
 			defer wg.Done()
 
-			var query string
-			query = fmt.Sprintf("BACKUP DATABASE %s TO DISK = '%s/%s=%v_%v.bak'; ", db.Name, backupPath, db.Name, time.Now().Format("2006-01-02"), time.Now().Format("15-04-05"))
+			query := fmt.Sprintf("BACKUP DATABASE [%s] TO DISK = @Path", db.Name)
+			path := fmt.Sprintf("%s/%s=%v_%v.bak", backupPath, db.Name, time.Now().Format("2006-01-02"), time.Now().Format("15-04-05"))
 
-			_, err := connection.Query(query)
+			stmt, err := connection.Prepare(query)
+			if err != nil {
+				return
+			}
+
+			_, err = stmt.Exec(sql.Named("Path", path))
 			if err != nil {
 				return
 			}
@@ -102,9 +107,7 @@ func (dr *DatabaseRepository) RestoreDatabase(restoreDbList *[]model.RestoreDb, 
 		go func(db model.RestoreDb, wg *sync.WaitGroup, ch chan model.RestoreDb) {
 			defer wg.Done()
 
-			var query string
-
-			query = fmt.Sprintf("RESTORE DATABASE [%s] FROM DISK = '%s' WITH ", db.Database.Name, db.BackupPath)
+			query := fmt.Sprintf("RESTORE DATABASE [%s] FROM DISK = @Path WITH ", db.Database.Name)
 			for _, file := range db.Database.Files {
 				if file.FileType == "ROWS" {
 					if strings.Contains(file.PhysicalName, ".mdf") {
@@ -118,7 +121,12 @@ func (dr *DatabaseRepository) RestoreDatabase(restoreDbList *[]model.RestoreDb, 
 				}
 			}
 			query += "RECOVERY;"
-			_, err := dr.connection.Query(query)
+
+			stmt, err := dr.connection.Prepare(query)
+			if err != nil {
+				return
+			}
+			_, err = stmt.Exec(sql.Named("Path", db.BackupPath))
 			if err != nil {
 				return
 			}
@@ -147,16 +155,26 @@ func (dr *DatabaseRepository) RestoreDatabase(restoreDbList *[]model.RestoreDb, 
 func (dr *DatabaseRepository) GetDefaultFilesPath() (string, string, error) {
 	var dataPath, logPath string
 
-	query := "SELECT SERVERPROPERTY('instancedefaultdatapath');"
+	query := "SELECT SERVERPROPERTY(@Prop);"
 
-	err := dr.connection.QueryRow(query).Scan(&dataPath)
+	stmt, err := dr.connection.Prepare(query)
 	if err != nil {
 		return "", "", err
 	}
 
-	query = "SELECT SERVERPROPERTY('instancedefaultlogpath');"
+	err = stmt.QueryRow(sql.Named("Prop", "instancedefaultdatapath")).Scan(&dataPath)
+	if err != nil {
+		return "", "", err
+	}
 
-	err = dr.connection.QueryRow(query).Scan(&logPath)
+	query = "SELECT SERVERPROPERTY(@Prop);"
+
+	stmt, err = dr.connection.Prepare(query)
+	if err != nil {
+		return "", "", err
+	}
+
+	err = stmt.QueryRow(sql.Named("Prop", "instancedefaultlogpath")).Scan(&logPath)
 	if err != nil {
 		return "", "", err
 	}
@@ -165,17 +183,20 @@ func (dr *DatabaseRepository) GetDefaultFilesPath() (string, string, error) {
 }
 
 func (dr *DatabaseRepository) GetBackupFilesData(backupFiles *[]string) (*[]model.DatabaseFromBackupFile, error) {
-	var query string
-
 	var restoreDatabaseInfo model.BackupDataFile
 	var restoreDatabaseInfoList []model.DatabaseFromBackupFile
 
 	var restoreDatabase model.DatabaseFromBackupFile
 
 	for _, backupFile := range *backupFiles {
-		query = fmt.Sprintf("RESTORE FILELISTONLY FROM DISK = '%s'; ", backupFile)
+		query := "RESTORE FILELISTONLY FROM DISK = @Path;"
 
-		rows, err := dr.connection.Query(query)
+		stmt, err := dr.connection.Prepare(query)
+		if err != nil {
+			return nil, err
+		}
+
+		rows, err := stmt.Query(sql.Named("Path", backupFile))
 		if err != nil {
 			return nil, err
 		}
