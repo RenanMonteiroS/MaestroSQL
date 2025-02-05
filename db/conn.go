@@ -2,34 +2,14 @@ package db
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
 	"net/url"
-	"os"
 
+	"github.com/RenanMonteiroS/MaestroSQLWeb/model"
 	_ "github.com/microsoft/go-mssqldb"
 )
 
-type ConnInfo struct {
-	Host     string
-	Port     string
-	User     string
-	Password string
-	DbName   string
-}
-
-func ConnDb() (*sql.DB, error) {
-	var connInfo ConnInfo
-
-	file, err := os.Open("../config/config.json")
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	decoder := json.NewDecoder(file)
-	decoder.Decode(&connInfo)
-
+func ConnDb(connInfo model.ConnInfo) (*sql.DB, error) {
 	queryParams := url.Values{}
 	queryParams.Add("database", connInfo.DbName)
 	queryParams.Add("encrypt", "disable")

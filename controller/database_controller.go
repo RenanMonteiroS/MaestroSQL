@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/RenanMonteiroS/MaestroSQLWeb/model"
@@ -16,10 +17,29 @@ func NewDatabaseController(sv service.DatabaseService) DatabaseController {
 	return DatabaseController{service: sv}
 }
 
-func (dc *DatabaseController) GetDatabases(ctx *gin.Context) {
-	databases, err := dc.service.GetDatabases()
+func (dc *DatabaseController) ConnectDatabase(ctx *gin.Context) {
+	var connInfo model.ConnInfo
+	err := ctx.BindJSON(&connInfo)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, err)
+		return
+	}
+
+	conn, err := dc.service.ConnectDatabase(connInfo)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, err)
+		return
+	}
+
+	ctx.JSON(http.StatusOK, conn)
+	return
+}
+
+func (dc *DatabaseController) GetDatabases(ctx *gin.Context) {
+
+	databases, err := dc.service.GetDatabases()
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, map[string]any{"msg": err.Error()})
 		return
 	}
 
@@ -44,11 +64,16 @@ func (dc *DatabaseController) BackupDatabase(ctx *gin.Context) {
 	}
 
 	databaseBackupList, errBackup := dc.service.BackupDatabase(postData.Databases, postData.Path)
-	if errBackup != nil && databaseBackupList != nil {
+	if errBackup != nil && len(databaseBackupList) != 0 {
 		ctx.JSON(http.StatusInternalServerError, map[string]any{"msg": "Completed with errors.", "backupErrors": errBackup, "backupCompleted": databaseBackupList})
 		return
-	} else if errBackup != nil && databaseBackupList == nil {
-		ctx.JSON(http.StatusInternalServerError, map[string]any{"msg": "No backup was completed.", "backupErrors": errBackup})
+	} else if errBackup != nil && len(databaseBackupList) == 0 {
+		var errStringList []string
+		for _, value := range errBackup {
+			errStringList = append(errStringList, value.Error())
+		}
+
+		ctx.JSON(http.StatusInternalServerError, map[string]any{"msg": "No backup was completed.", "backupErrors": errStringList})
 		return
 	}
 
@@ -68,13 +93,17 @@ func (dc *DatabaseController) RestoreDatabase(ctx *gin.Context) {
 
 	restoredDatabases, errRestore, err := dc.service.RestoreDatabase(backupFiles.Path)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, err)
+		fmt.Println(err)
+		ctx.JSON(http.StatusInternalServerError, map[string]any{"msg": "No restore was completed.", "restoreErrors": err.Error()})
 		return
 	}
-	if errRestore != nil && restoredDatabases != nil {
+
+	if errRestore != nil && len(restoredDatabases) > 0 {
 		ctx.JSON(http.StatusInternalServerError, map[string]any{"msg": "Completed with errors.", "restoreErrors": errRestore, "restoreCompleted": restoredDatabases})
-	} else if errRestore != nil && restoredDatabases == nil {
+		return
+	} else if errRestore != nil && len(restoredDatabases) == 0 {
 		ctx.JSON(http.StatusInternalServerError, map[string]any{"msg": "No restore was completed.", "restoreErrors": errRestore})
+		return
 	}
 
 	ctx.JSON(http.StatusOK, restoredDatabases)

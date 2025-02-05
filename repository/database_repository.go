@@ -3,12 +3,14 @@ package repository
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
+	"github.com/RenanMonteiroS/MaestroSQLWeb/db"
 	"github.com/RenanMonteiroS/MaestroSQLWeb/model"
 )
 
@@ -20,6 +22,31 @@ func NewDatabaseRepository(connection *sql.DB) DatabaseRepository {
 	return DatabaseRepository{
 		connection: connection,
 	}
+}
+
+func (ds *DatabaseRepository) ConnectDatabase(connInfo model.ConnInfo) (*sql.DB, error) {
+	conn, err := db.ConnDb(connInfo)
+	if err != nil {
+		return nil, err
+	}
+
+	ds.connection = conn
+
+	return conn, nil
+}
+
+func (ds *DatabaseRepository) CheckDbConn() error {
+	if ds.connection == nil {
+		return errors.New("Connection was not set. Try to call /connect with the connection parameters")
+	}
+
+	err := ds.connection.Ping()
+	if err != nil {
+		return err
+	}
+
+	return nil
+
 }
 
 func (dr *DatabaseRepository) GetDatabases() ([]model.MergedDatabaseFileInfo, error) {
@@ -52,6 +79,9 @@ func (dr *DatabaseRepository) GetDatabases() ([]model.MergedDatabaseFileInfo, er
 }
 
 func (dr *DatabaseRepository) BackupDatabase(backupDbList []model.Database, backupPath string) ([]model.Database, []error) {
+	if dr.connection == nil {
+		return []model.Database{}, []error{errors.New("Connection was not set. Try to call /connect with the connection parameters")}
+	}
 
 	var wg sync.WaitGroup
 	ch := make(chan model.Database, len(backupDbList))

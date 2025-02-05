@@ -1,13 +1,11 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 	"os/exec"
 	"runtime"
 
 	"github.com/RenanMonteiroS/MaestroSQLWeb/controller"
-	"github.com/RenanMonteiroS/MaestroSQLWeb/db"
 	"github.com/RenanMonteiroS/MaestroSQLWeb/repository"
 	"github.com/RenanMonteiroS/MaestroSQLWeb/service"
 	"github.com/gin-gonic/gin"
@@ -17,16 +15,11 @@ func main() {
 	server := gin.Default()
 	server.LoadHTMLGlob("../templates/*")
 
-	conn, err := db.ConnDb()
-	if err != nil {
-		fmt.Printf("Error: %v", err)
-		return
-	}
-	defer conn.Close()
-
-	DatabaseRepository := repository.NewDatabaseRepository(conn)
+	DatabaseRepository := repository.NewDatabaseRepository(nil)
 	DatabaseService := service.NewDatabaseService(DatabaseRepository)
 	DatabaseController := controller.NewDatabaseController(DatabaseService)
+
+	server.POST("/connect", DatabaseController.ConnectDatabase)
 
 	server.GET("/databases", DatabaseController.GetDatabases)
 

@@ -1,6 +1,8 @@
 package service
 
 import (
+	"database/sql"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -18,7 +20,30 @@ func NewDatabaseService(rp repository.DatabaseRepository) DatabaseService {
 	return DatabaseService{repository: rp}
 }
 
+func (ds *DatabaseService) ConnectDatabase(connInfo model.ConnInfo) (*sql.DB, error) {
+	conn, err := ds.repository.ConnectDatabase(connInfo)
+	if err != nil {
+		return nil, err
+	}
+
+	return conn, nil
+}
+
+func (ds *DatabaseService) CheckDbConn() error {
+	err := ds.repository.CheckDbConn()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (ds *DatabaseService) GetDatabases() ([]model.Database, error) {
+	err := ds.CheckDbConn()
+	if err != nil {
+		return []model.Database{}, err
+	}
+
 	dbListAux, err := ds.repository.GetDatabases()
 	if err != nil {
 		return nil, err
@@ -57,6 +82,11 @@ func (ds *DatabaseService) GetDatabases() ([]model.Database, error) {
 }
 
 func (ds *DatabaseService) BackupDatabase(backupDbList []model.Database, backupPath string) ([]model.Database, []error) {
+	err := ds.CheckDbConn()
+	if err != nil {
+		return []model.Database{}, []error{err}
+	}
+
 	backupDbDoneList, errBackup := ds.repository.BackupDatabase(backupDbList, backupPath)
 	if errBackup != nil {
 		return backupDbDoneList, errBackup
@@ -66,6 +96,11 @@ func (ds *DatabaseService) BackupDatabase(backupDbList []model.Database, backupP
 }
 
 func (ds *DatabaseService) RestoreDatabase(backupFilesPath string) ([]model.RestoreDb, []error, error) {
+	err := ds.CheckDbConn()
+	if err != nil {
+		return []model.RestoreDb{}, []error{}, errors.New("Connection was not set. Try to call /connect with the connection parameters")
+	}
+
 	var backupsFullPathList []string
 
 	var database model.RestoreDb
