@@ -18,16 +18,28 @@ func NewDatabaseController(sv service.DatabaseService) DatabaseController {
 }
 
 func (dc *DatabaseController) ConnectDatabase(ctx *gin.Context) {
-	var connInfo model.ConnInfo
-	err := ctx.BindJSON(&connInfo)
+	authorization := ctx.Request.Header["Authorization"]
+	if authorization == nil {
+		ctx.JSON(http.StatusUnauthorized, map[string]any{"msg": "Authorization header not setted"})
+		return
+	}
+
+	err := dc.service.IsAuth(authorization[0])
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, err)
+		ctx.JSON(http.StatusUnauthorized, map[string]any{"msg": err.Error()})
+		return
+	}
+
+	var connInfo model.ConnInfo
+	err = ctx.BindJSON(&connInfo)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, map[string]any{"msg": err.Error()})
 		return
 	}
 
 	conn, err := dc.service.ConnectDatabase(connInfo)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, err)
+		ctx.JSON(http.StatusInternalServerError, map[string]any{"msg": err.Error()})
 		return
 	}
 
@@ -36,6 +48,17 @@ func (dc *DatabaseController) ConnectDatabase(ctx *gin.Context) {
 }
 
 func (dc *DatabaseController) GetDatabases(ctx *gin.Context) {
+	authorization := ctx.Request.Header["Authorization"]
+	if authorization == nil {
+		ctx.JSON(http.StatusUnauthorized, map[string]any{"msg": "Authorization header not setted"})
+		return
+	}
+
+	err := dc.service.IsAuth(authorization[0])
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, map[string]any{"msg": err.Error()})
+		return
+	}
 
 	databases, err := dc.service.GetDatabases()
 	if err != nil {
@@ -48,6 +71,17 @@ func (dc *DatabaseController) GetDatabases(ctx *gin.Context) {
 }
 
 func (dc *DatabaseController) BackupDatabase(ctx *gin.Context) {
+	authorization := ctx.Request.Header["Authorization"]
+	if authorization == nil {
+		ctx.JSON(http.StatusUnauthorized, map[string]any{"msg": "Authorization header not setted"})
+		return
+	}
+
+	err := dc.service.IsAuth(authorization[0])
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, map[string]any{"msg": err.Error()})
+		return
+	}
 
 	type PostRequired struct {
 		Databases []model.Database `json:"databases" binding:"required"`
@@ -56,7 +90,7 @@ func (dc *DatabaseController) BackupDatabase(ctx *gin.Context) {
 
 	var postData PostRequired
 
-	err := ctx.BindJSON(&postData)
+	err = ctx.BindJSON(&postData)
 
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, err)
@@ -82,10 +116,21 @@ func (dc *DatabaseController) BackupDatabase(ctx *gin.Context) {
 }
 
 func (dc *DatabaseController) RestoreDatabase(ctx *gin.Context) {
+	authorization := ctx.Request.Header["Authorization"]
+	if authorization == nil {
+		ctx.JSON(http.StatusUnauthorized, map[string]any{"msg": "Authorization header not setted"})
+		return
+	}
+
+	err := dc.service.IsAuth(authorization[0])
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, map[string]any{"msg": err.Error()})
+		return
+	}
 
 	var backupFiles model.BackupFiles
 
-	err := ctx.BindJSON(&backupFiles)
+	err = ctx.BindJSON(&backupFiles)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, err)
 		return

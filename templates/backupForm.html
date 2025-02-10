@@ -1,12 +1,236 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Full Screen Wizard</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Font Awesome for icons -->
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+  <style>
+    body, html {
+      height: 100%;
+      margin: 0;
+    }
+    .step {
+      display: none;
+    }
+    .step.active {
+      display: block;
+    }
+    .navbar {
+      margin-bottom: 20px;
+    }
+    .user-dropdown {
+      position: absolute;
+      right: 20px;
+      top: 10px;
+    }
+    .dropdown-menu {
+      right: 0;
+      left: auto;
+    }
+  </style>
 </head>
 <body>
-    <p>Teste</p>
-    
+
+<!-- Navbar with User Icon -->
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="#">Smart Wizard</a>
+    <div class="user-dropdown">
+      <div class="dropdown">
+        <a class="dropdown-toggle" href="#" role="button" id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+          <i class="fas fa-user"></i>
+        </a>
+        <ul class="dropdown-menu" aria-labelledby="userDropdown">
+          <li id="loginOption"><a class="dropdown-item" href="#" onclick="login()">Login</a></li>
+          <li id="userName" style="display: none;"><span class="dropdown-item-text"></span></li>
+          <li id="logoffOption" style="display: none;"><a class="dropdown-item" href="#" onclick="logoff()">Logoff</a></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</nav>
+
+<!-- Wizard Content -->
+<div class="container-fluid h-100">
+  <div class="row h-100 justify-content-center align-items-center">
+    <div class="col-md-8">
+      <div class="card">
+        <div class="card-header">
+          <ul class="nav nav-tabs card-header-tabs">
+            <li class="nav-item">
+              <a class="nav-link active" data-step="1">Step 1</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" data-step="2">Step 2</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" data-step="3">Step 3</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link" data-step="4">Step 4</a>
+            </li>
+          </ul>
+        </div>
+        <div class="card-body">
+          <form id="wizardForm">
+            <!-- Step 1 -->
+            <div class="step active" data-step="1">
+              <h5>Database Connection</h5>
+              <div class="mb-3">
+                <label for="host" class="form-label">Host</label>
+                <input type="text" class="form-control" id="host" required>
+              </div>
+              <div class="mb-3">
+                <label for="port" class="form-label">Port</label>
+                <input type="text" class="form-control" id="port" required>
+              </div>
+              <div class="mb-3">
+                <label for="user" class="form-label">User</label>
+                <input type="text" class="form-control" id="user" required>
+              </div>
+              <div class="mb-3">
+                <label for="password" class="form-label">Password</label>
+                <input type="password" class="form-control" id="password" required>
+              </div>
+            </div>
+
+            <!-- Step 2 -->
+            <div class="step" data-step="2">
+              <h5>Operation</h5>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="operation" id="backup" value="Backup" required>
+                <label class="form-check-label" for="backup">Backup</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="operation" id="restore" value="Restore" required>
+                <label class="form-check-label" for="restore">Restore</label>
+              </div>
+            </div>
+
+            <!-- Step 3 -->
+            <div class="step" data-step="3">
+              <h5>Choose Database</h5>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="db1" value="Database 1">
+                <label class="form-check-label" for="db1">Database 1</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="db2" value="Database 2">
+                <label class="form-check-label" for="db2">Database 2</label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" id="db3" value="Database 3">
+                <label class="form-check-label" for="db3">Database 3</label>
+              </div>
+            </div>
+
+            <!-- Step 4 -->
+            <div class="step" data-step="4">
+              <h5>Confirm Details</h5>
+              <p><strong>Host:</strong> <span id="summaryHost"></span></p>
+              <p><strong>Port:</strong> <span id="summaryPort"></span></p>
+              <p><strong>User:</strong> <span id="summaryUser"></span></p>
+              <p><strong>Password:</strong> <span id="summaryPassword"></span></p>
+              <p><strong>Operation:</strong> <span id="summaryOperation"></span></p>
+              <p><strong>Selected Databases:</strong> <span id="summaryDatabases"></span></p>
+            </div>
+
+            <div class="mt-3">
+              <button type="button" class="btn btn-secondary" id="prevBtn">Previous</button>
+              <button type="button" class="btn btn-primary" id="nextBtn">Next</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Bootstrap JS and dependencies -->
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.6/dist/umd/popper.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.min.js"></script>
+<script>
+  let currentStep = 1;
+  let loggedInUser = null;
+
+  function showStep(step) {
+    document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+    document.querySelector(`.step[data-step="${step}"]`).classList.add('active');
+    document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+    document.querySelector(`.nav-link[data-step="${step}"]`).classList.add('active');
+  }
+
+  function updateSummary() {
+    document.getElementById('summaryHost').textContent = document.getElementById('host').value;
+    document.getElementById('summaryPort').textContent = document.getElementById('port').value;
+    document.getElementById('summaryUser').textContent = document.getElementById('user').value;
+    document.getElementById('summaryPassword').textContent = document.getElementById('password').value;
+    document.getElementById('summaryOperation').textContent = document.querySelector('input[name="operation"]:checked').value;
+    const selectedDbs = Array.from(document.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value).join(', ');
+    document.getElementById('summaryDatabases').textContent = selectedDbs;
+  }
+
+  function login() {
+    loggedInUser = "John Doe"; // Simulate a logged-in user
+    updateUserDropdown();
+  }
+
+  function logoff() {
+    loggedInUser = null;
+    updateUserDropdown();
+  }
+
+  function updateUserDropdown() {
+    const loginOption = document.getElementById('loginOption');
+    const userName = document.getElementById('userName');
+    const logoffOption = document.getElementById('logoffOption');
+
+    if (loggedInUser) {
+      loginOption.style.display = 'none';
+      userName.style.display = 'block';
+      userName.querySelector('.dropdown-item-text').textContent = loggedInUser;
+      logoffOption.style.display = 'block';
+    } else {
+      loginOption.style.display = 'block';
+      userName.style.display = 'none';
+      logoffOption.style.display = 'none';
+    }
+  }
+
+  document.getElementById('nextBtn').addEventListener('click', () => {
+    if (currentStep < 4) {
+      currentStep++;
+      showStep(currentStep);
+      if (currentStep === 4) {
+        updateSummary();
+      }
+    }
+  });
+
+  document.getElementById('prevBtn').addEventListener('click', () => {
+    if (currentStep > 1) {
+      currentStep--;
+      showStep(currentStep);
+    }
+  });
+
+  document.querySelectorAll('.nav-link').forEach(link => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      const step = parseInt(e.target.getAttribute('data-step'), 10);
+      if (step < currentStep) {
+        currentStep = step;
+        showStep(currentStep);
+      }
+    });
+  });
+
+  // Initialize user dropdown
+  updateUserDropdown();
+</script>
 </body>
 </html>

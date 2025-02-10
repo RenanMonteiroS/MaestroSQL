@@ -11,7 +11,7 @@ import (
 
 func ConnDb(connInfo model.ConnInfo) (*sql.DB, error) {
 	queryParams := url.Values{}
-	queryParams.Add("database", connInfo.DbName)
+	queryParams.Add("database", "master")
 	queryParams.Add("encrypt", "disable")
 
 	u := &url.URL{

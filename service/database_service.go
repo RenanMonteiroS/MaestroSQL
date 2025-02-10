@@ -2,11 +2,14 @@ package service
 
 import (
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/RenanMonteiroS/MaestroSQLWeb/model"
 	"github.com/RenanMonteiroS/MaestroSQLWeb/repository"
@@ -36,6 +39,49 @@ func (ds *DatabaseService) CheckDbConn() error {
 	}
 
 	return nil
+}
+
+func (ds *DatabaseService) IsAuth(authorization string) error {
+	type AuthConfig struct {
+		AuthenticatorUrl string `json:"authenticatorUrl"`
+	}
+	type ResponseBody struct {
+		Msg    string `json:"msg"`
+		Status string `json:"status"`
+	}
+
+	client := &http.Client{Timeout: 10 * time.Second}
+
+	var authConfig AuthConfig
+	var responseBody ResponseBody
+
+	file, err := os.ReadFile("../config/config.json")
+	if err != nil {
+		return err
+	}
+
+	json.Unmarshal([]byte(file), &authConfig)
+	fmt.Printf("%v/isValid", authConfig.AuthenticatorUrl)
+	req, err := http.NewRequest("GET", fmt.Sprintf("%v/isValid", authConfig.AuthenticatorUrl), nil)
+	req.Header.Set("Authorization", authorization)
+	req.Header.Set("Content-Type", "application/json")
+
+	res, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+	if res.StatusCode != 200 {
+		err := json.NewDecoder(res.Body).Decode(&responseBody)
+		if err != nil {
+			return err
+		}
+
+		return errors.New(fmt.Sprintf("Authentication failed: %v", responseBody.Msg))
+	}
+
+	return nil
+
 }
 
 func (ds *DatabaseService) GetDatabases() ([]model.Database, error) {
