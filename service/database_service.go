@@ -23,28 +23,8 @@ func NewDatabaseService(rp repository.DatabaseRepository) DatabaseService {
 	return DatabaseService{repository: rp}
 }
 
-func (ds *DatabaseService) ConnectDatabase(connInfo model.ConnInfo) (*sql.DB, error) {
-	conn, err := ds.repository.ConnectDatabase(connInfo)
-	if err != nil {
-		return nil, err
-	}
+func (ds *DatabaseService) IsAuth(authorization *[]string) error {
 
-	return conn, nil
-}
-
-func (ds *DatabaseService) CheckDbConn() error {
-	err := ds.repository.CheckDbConn()
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (ds *DatabaseService) IsAuth(authorization string) error {
-	type AuthConfig struct {
-		AuthenticatorUrl string `json:"authenticatorUrl"`
-	}
 	type ResponseBody struct {
 		Msg    string `json:"msg"`
 		Status string `json:"status"`
@@ -52,18 +32,32 @@ func (ds *DatabaseService) IsAuth(authorization string) error {
 
 	client := &http.Client{Timeout: 10 * time.Second}
 
-	var authConfig AuthConfig
+	var authConfig model.AuthConfig
 	var responseBody ResponseBody
 
-	file, err := os.ReadFile("../config/config.json")
+	basePath, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+
+	file, err := os.ReadFile(filepath.Join(basePath, "config", "config.json"))
 	if err != nil {
 		return err
 	}
 
 	json.Unmarshal([]byte(file), &authConfig)
-	fmt.Printf("%v/isValid", authConfig.AuthenticatorUrl)
+	if authConfig.UseAuthentication != "true" {
+		return nil
+	}
+
+	fmt.Println(authorization)
+	if len(*authorization) == 0 {
+		return errors.New("Authorization header not setted")
+	}
+
+	auth := *authorization
 	req, err := http.NewRequest("GET", fmt.Sprintf("%v/isValid", authConfig.AuthenticatorUrl), nil)
-	req.Header.Set("Authorization", authorization)
+	req.Header.Set("Authorization", auth[0])
 	req.Header.Set("Content-Type", "application/json")
 
 	res, err := client.Do(req)
@@ -82,6 +76,24 @@ func (ds *DatabaseService) IsAuth(authorization string) error {
 
 	return nil
 
+}
+
+func (ds *DatabaseService) ConnectDatabase(connInfo model.ConnInfo) (*sql.DB, error) {
+	conn, err := ds.repository.ConnectDatabase(connInfo)
+	if err != nil {
+		return nil, err
+	}
+
+	return conn, nil
+}
+
+func (ds *DatabaseService) CheckDbConn() error {
+	err := ds.repository.CheckDbConn()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (ds *DatabaseService) GetDatabases() ([]model.Database, error) {

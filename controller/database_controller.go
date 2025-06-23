@@ -19,12 +19,8 @@ func NewDatabaseController(sv service.DatabaseService) DatabaseController {
 
 func (dc *DatabaseController) ConnectDatabase(ctx *gin.Context) {
 	authorization := ctx.Request.Header["Authorization"]
-	if authorization == nil {
-		ctx.JSON(http.StatusUnauthorized, map[string]any{"msg": "Authorization header not setted"})
-		return
-	}
 
-	err := dc.service.IsAuth(authorization[0])
+	err := dc.service.IsAuth(&authorization)
 	if err != nil {
 		ctx.JSON(http.StatusUnauthorized, map[string]any{"msg": err.Error()})
 		return
@@ -49,12 +45,8 @@ func (dc *DatabaseController) ConnectDatabase(ctx *gin.Context) {
 
 func (dc *DatabaseController) GetDatabases(ctx *gin.Context) {
 	authorization := ctx.Request.Header["Authorization"]
-	if authorization == nil {
-		ctx.JSON(http.StatusUnauthorized, map[string]any{"msg": "Authorization header not setted"})
-		return
-	}
 
-	err := dc.service.IsAuth(authorization[0])
+	err := dc.service.IsAuth(&authorization)
 	if err != nil {
 		ctx.JSON(http.StatusUnauthorized, map[string]any{"msg": err.Error()})
 		return
@@ -72,12 +64,8 @@ func (dc *DatabaseController) GetDatabases(ctx *gin.Context) {
 
 func (dc *DatabaseController) BackupDatabase(ctx *gin.Context) {
 	authorization := ctx.Request.Header["Authorization"]
-	if authorization == nil {
-		ctx.JSON(http.StatusUnauthorized, map[string]any{"msg": "Authorization header not setted"})
-		return
-	}
 
-	err := dc.service.IsAuth(authorization[0])
+	err := dc.service.IsAuth(&authorization)
 	if err != nil {
 		ctx.JSON(http.StatusUnauthorized, map[string]any{"msg": err.Error()})
 		return
@@ -117,12 +105,8 @@ func (dc *DatabaseController) BackupDatabase(ctx *gin.Context) {
 
 func (dc *DatabaseController) RestoreDatabase(ctx *gin.Context) {
 	authorization := ctx.Request.Header["Authorization"]
-	if authorization == nil {
-		ctx.JSON(http.StatusUnauthorized, map[string]any{"msg": "Authorization header not setted"})
-		return
-	}
 
-	err := dc.service.IsAuth(authorization[0])
+	err := dc.service.IsAuth(&authorization)
 	if err != nil {
 		ctx.JSON(http.StatusUnauthorized, map[string]any{"msg": err.Error()})
 		return

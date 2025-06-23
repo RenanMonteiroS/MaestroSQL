@@ -1,8 +1,11 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 
 	"github.com/RenanMonteiroS/MaestroSQLWeb/controller"
@@ -13,7 +16,12 @@ import (
 
 func main() {
 	server := gin.Default()
-	server.LoadHTMLGlob("../templates/*")
+	baseFolder, err := os.Getwd()
+	if err != nil {
+		fmt.Println("Erro ao encontrar o caminho base")
+	}
+
+	server.LoadHTMLGlob(filepath.Join(baseFolder, "templates", "*"))
 
 	DatabaseRepository := repository.NewDatabaseRepository(nil)
 	DatabaseService := service.NewDatabaseService(DatabaseRepository)
