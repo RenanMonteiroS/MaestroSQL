@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -79,6 +81,8 @@ func (dr *DatabaseRepository) GetDatabases() ([]model.MergedDatabaseFileInfo, er
 }
 
 func (dr *DatabaseRepository) BackupDatabase(backupDbList []model.Database, backupPath string) ([]model.Database, []error) {
+	t0 := time.Now()
+
 	if dr.connection == nil {
 		return []model.Database{}, []error{errors.New("Connection was not set. Try to call /connect with the connection parameters")}
 	}
@@ -89,6 +93,13 @@ func (dr *DatabaseRepository) BackupDatabase(backupDbList []model.Database, back
 
 	var dbDoneList []model.Database
 	var errorsList []error
+
+	f, err := os.OpenFile("backup.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		return nil, []error{err}
+	}
+	defer f.Close()
+	log.SetOutput(f)
 
 	for _, db := range backupDbList {
 		wg.Add(1)
@@ -103,16 +114,19 @@ func (dr *DatabaseRepository) BackupDatabase(backupDbList []model.Database, back
 
 			stmt, err := dr.connection.Prepare(query)
 			if err != nil {
+				log.Printf("Backup related to [%v] database with errors: %v", db.Name, err)
 				chError <- err
 				return
 			}
 
 			_, err = stmt.ExecContext(ctx, sql.Named("Path", path))
 			if err != nil {
+				log.Printf("Backup related to [%v] database with errors: %v", db.Name, err)
 				chError <- err
 				return
 			}
 
+			log.Printf("Backup related to [%v] database completed", db.Name)
 			ch <- db
 
 			return
@@ -134,11 +148,17 @@ func (dr *DatabaseRepository) BackupDatabase(backupDbList []model.Database, back
 		errorsList = append(errorsList, err)
 	}
 
+	log.Printf("Data: %v", time.Now().Format("2006-01-02"))
+	log.Printf("Tempo total: %v", time.Since(t0))
+	log.Printf("Local: %v", backupPath)
+	log.Printf("Total de backups: %v", len(dbDoneList))
+
 	return dbDoneList, errorsList
 
 }
 
 func (dr *DatabaseRepository) RestoreDatabase(restoreDbList []model.RestoreDb, dataPath string, logPath string) ([]model.RestoreDb, []error) {
+	t0 := time.Now()
 
 	var restoreDoneDbList []model.RestoreDb
 	var errorsList []error
@@ -146,6 +166,13 @@ func (dr *DatabaseRepository) RestoreDatabase(restoreDbList []model.RestoreDb, d
 	var wg sync.WaitGroup
 	ch := make(chan model.RestoreDb, len(restoreDbList))
 	chError := make(chan error, len(restoreDbList))
+
+	f, err := os.OpenFile("restore.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		return nil, []error{err}
+	}
+	defer f.Close()
+	log.SetOutput(f)
 
 	for _, db := range restoreDbList {
 		wg.Add(1)
@@ -172,15 +199,18 @@ func (dr *DatabaseRepository) RestoreDatabase(restoreDbList []model.RestoreDb, d
 
 			stmt, err := dr.connection.Prepare(query)
 			if err != nil {
+				log.Printf("Restore related to [%v] database with errors: %v", db.Database.Name, err)
 				chError <- err
 				return
 			}
 			_, err = stmt.ExecContext(ctx, sql.Named("Path", db.BackupPath))
 			if err != nil {
+				log.Printf("Restore related to [%v] database with errors: %v", db.Database.Name, err)
 				chError <- err
 				return
 			}
 
+			log.Printf("Restore related to [%v] database completed", db.Database.Name)
 			ch <- db
 
 			return
@@ -202,6 +232,10 @@ func (dr *DatabaseRepository) RestoreDatabase(restoreDbList []model.RestoreDb, d
 	for err := range chError {
 		errorsList = append(errorsList, err)
 	}
+
+	log.Printf("Data: %v", time.Now().Format("2006-01-02"))
+	log.Printf("Tempo total: %v", time.Since(t0))
+	log.Printf("Total de backups: %v", len(restoreDoneDbList))
 
 	return restoreDoneDbList, errorsList
 

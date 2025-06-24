@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/RenanMonteiroS/MaestroSQLWeb/config"
 	"github.com/RenanMonteiroS/MaestroSQLWeb/model"
 	"github.com/RenanMonteiroS/MaestroSQLWeb/repository"
 )
@@ -24,7 +26,6 @@ func NewDatabaseService(rp repository.DatabaseRepository) DatabaseService {
 }
 
 func (ds *DatabaseService) IsAuth(authorization *[]string) error {
-
 	type ResponseBody struct {
 		Msg    string `json:"msg"`
 		Status string `json:"status"`
@@ -32,31 +33,18 @@ func (ds *DatabaseService) IsAuth(authorization *[]string) error {
 
 	client := &http.Client{Timeout: 10 * time.Second}
 
-	var authConfig model.AuthConfig
 	var responseBody ResponseBody
 
-	basePath, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-
-	file, err := os.ReadFile(filepath.Join(basePath, "config", "config.json"))
-	if err != nil {
-		return err
-	}
-
-	json.Unmarshal([]byte(file), &authConfig)
-	if authConfig.UseAuthentication != "true" {
+	if config.UseAuthentication != true {
 		return nil
 	}
 
-	fmt.Println(authorization)
 	if len(*authorization) == 0 {
 		return errors.New("Authorization header not setted")
 	}
 
 	auth := *authorization
-	req, err := http.NewRequest("GET", fmt.Sprintf("%v/isValid", authConfig.AuthenticatorUrl), nil)
+	req, err := http.NewRequest("GET", fmt.Sprintf("%v/isValid", config.AuthenticatorURL), nil)
 	req.Header.Set("Authorization", auth[0])
 	req.Header.Set("Content-Type", "application/json")
 
@@ -81,6 +69,15 @@ func (ds *DatabaseService) IsAuth(authorization *[]string) error {
 func (ds *DatabaseService) ConnectDatabase(connInfo model.ConnInfo) (*sql.DB, error) {
 	conn, err := ds.repository.ConnectDatabase(connInfo)
 	if err != nil {
+		f, errFile := os.OpenFile("fatal.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+		if errFile != nil {
+			fmt.Println("Erro: ", errFile)
+			return nil, errFile
+		}
+		defer f.Close()
+		log.SetOutput(f)
+		log.Printf("Erro: %v: \n", err)
+
 		return nil, err
 	}
 
@@ -90,6 +87,14 @@ func (ds *DatabaseService) ConnectDatabase(connInfo model.ConnInfo) (*sql.DB, er
 func (ds *DatabaseService) CheckDbConn() error {
 	err := ds.repository.CheckDbConn()
 	if err != nil {
+		f, errFile := os.OpenFile("fatal.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+		if errFile != nil {
+			fmt.Println("Erro: ", errFile)
+			return errFile
+		}
+		defer f.Close()
+		log.SetOutput(f)
+		log.Printf("Erro: %v: \n", err)
 		return err
 	}
 
@@ -104,6 +109,14 @@ func (ds *DatabaseService) GetDatabases() ([]model.Database, error) {
 
 	dbListAux, err := ds.repository.GetDatabases()
 	if err != nil {
+		f, errFile := os.OpenFile("fatal.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+		if errFile != nil {
+			fmt.Println("Erro: ", errFile)
+			return nil, errFile
+		}
+		defer f.Close()
+		log.SetOutput(f)
+		log.Printf("Erro: %v: \n", err)
 		return nil, err
 	}
 
@@ -145,6 +158,14 @@ func (ds *DatabaseService) BackupDatabase(backupDbList []model.Database, backupP
 		return []model.Database{}, []error{err}
 	}
 
+	f, err := os.OpenFile("backup.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		return nil, []error{err}
+	}
+	defer f.Close()
+	log.SetOutput(f)
+	log.Printf("-------------------//-------------------//-------------------//-------------------")
+
 	backupDbDoneList, errBackup := ds.repository.BackupDatabase(backupDbList, backupPath)
 	if errBackup != nil {
 		return backupDbDoneList, errBackup
@@ -164,6 +185,14 @@ func (ds *DatabaseService) RestoreDatabase(backupFilesPath string) ([]model.Rest
 	var database model.RestoreDb
 	var restoreDatabaseList []model.RestoreDb
 	var databaseFile model.DatabaseFile
+
+	f, err := os.OpenFile("restore.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer f.Close()
+	log.SetOutput(f)
+	log.Printf("-------------------//-------------------//-------------------//-------------------")
 
 	dir, err := os.ReadDir(backupFilesPath)
 	if err != nil {

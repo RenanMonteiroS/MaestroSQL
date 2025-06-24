@@ -22,8 +22,10 @@ func ConnDb(connInfo model.ConnInfo) (*sql.DB, error) {
 		RawQuery: queryParams.Encode(),
 	}
 
+	fmt.Println(u.String())
 	db, err := sql.Open("sqlserver", u.String())
 	if err != nil {
+		fmt.Println("Erro", err)
 		return nil, err
 	}
 

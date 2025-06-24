@@ -1,11 +1,10 @@
 package main
 
 import (
-	"fmt"
+	"embed"
+	"html/template"
 	"net/http"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 
 	"github.com/RenanMonteiroS/MaestroSQLWeb/controller"
@@ -14,25 +13,22 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+//go:embed templates/*
+var TemplateFS embed.FS
+
 func main() {
 	server := gin.Default()
-	baseFolder, err := os.Getwd()
-	if err != nil {
-		fmt.Println("Erro ao encontrar o caminho base")
-	}
 
-	server.LoadHTMLGlob(filepath.Join(baseFolder, "templates", "*"))
+	tmpl := template.Must(template.ParseFS(TemplateFS, "templates/*"))
+	server.SetHTMLTemplate(tmpl)
 
 	DatabaseRepository := repository.NewDatabaseRepository(nil)
 	DatabaseService := service.NewDatabaseService(DatabaseRepository)
 	DatabaseController := controller.NewDatabaseController(DatabaseService)
 
 	server.POST("/connect", DatabaseController.ConnectDatabase)
-
 	server.GET("/databases", DatabaseController.GetDatabases)
-
 	server.POST("/backup", DatabaseController.BackupDatabase)
-
 	server.POST("/restore", DatabaseController.RestoreDatabase)
 
 	server.GET("/", func(c *gin.Context) {
@@ -41,7 +37,6 @@ func main() {
 
 	go openFile("http://localhost:8000/")
 	server.Run(":8000")
-
 }
 
 func openFile(url string) error {
@@ -54,7 +49,7 @@ func openFile(url string) error {
 		args = []string{"/c", "start"}
 	case "darwin":
 		cmd = "open"
-	default: // "linux", "freebsd", "openbsd", "netbsd"
+	default:
 		cmd = "xdg-open"
 	}
 	args = append(args, url)
