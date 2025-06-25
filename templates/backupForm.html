@@ -66,6 +66,65 @@
         body {
             background-color: #f8f9fa;
         }
+         .user-menu {
+            position: relative;
+        }
+        .user-menu .dropdown-menu {
+            min-width: 280px;
+            padding: 1.5rem;
+            border: none;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            border-radius: 8px;
+        }
+        .user-menu .dropdown-toggle::after {
+            display: none;
+        }
+        .user-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background-color: #6c757d;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .user-icon:hover {
+            background-color: #5a6268;
+        }
+        .auth-form h6 {
+            color: #495057;
+            margin-bottom: 1rem;
+        }
+        .auth-form .form-label {
+            font-weight: 500;
+            color: #495057;
+            margin-bottom: 0.5rem;
+        }
+        .auth-form .form-control {
+            border-radius: 6px;
+            border: 1px solid #ced4da;
+            padding: 0.5rem 0.75rem;
+            font-size: 0.9rem;
+        }
+        .auth-form .btn {
+            border-radius: 6px;
+            font-weight: 500;
+        }
+        .auth-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+        }
+        .auth-status.authenticated {
+            color: #198754;
+        }
+        .auth-status.unauthenticated {
+            color: #dc3545;
+        }
     </style>
 </head>
 <body>
@@ -76,7 +135,7 @@
                 <img src="https://rmonteiroproj.blob.core.windows.net/images/conductor.png" width="13%">
                 MaestroSQL
             </a>
-            <div class="navbar-nav ms-auto d-flex flex-row">
+            <div class="navbar-nav ms-auto d-flex flex-row align-items-center">
                 <div class="step-item" id="step-nav-1">
                     <i class="fas fa-server me-1"></i>
                     Conexão
@@ -93,6 +152,59 @@
                     <i class="fas fa-clipboard-check me-1"></i>
                     Resumo
                 </div>
+
+                {{if .useAuth}}    
+                <!-- Menu do Usuário -->
+                <div class="user-menu dropdown ms-3">
+                    <div class="user-icon" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="fas fa-user"></i>
+                    </div>
+                    <div class="dropdown-menu dropdown-menu-end">
+                        <div class="auth-form">
+                            <h6 class="text-center mb-3">
+                                <i class="fas fa-shield-alt me-2"></i>
+                                Autenticação
+                            </h6>
+                            
+                            <div class="auth-status unauthenticated mb-3" id="auth-status">
+                                <i class="fas fa-exclamation-circle"></i>
+                                <span>Não autenticado</span>
+                            </div>
+                            
+                            <form id="auth-form">
+                                <div class="mb-3">
+                                    <label for="email" class="form-label">E-mail</label>
+                                    <input type="email" class="form-control form-control-sm" id="email" placeholder="usuario@exemplo.com" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="auth-password" class="form-label">Senha</label>
+                                    <input type="password" class="form-control form-control-sm" id="auth-password" placeholder="••••••••" required>
+                                </div>
+                                
+                                <div class="mb-3">
+                                    <label for="mfa-token" class="form-label">Token MFA</label>
+                                    <input type="text" class="form-control form-control-sm" id="mfa-token" placeholder="123456" maxlength="6">
+                                    <div class="form-text">
+                                        <small>Código de 6 dígitos do seu app autenticador</small>
+                                    </div>
+                                </div>
+                                
+                                <div class="d-grid gap-2">
+                                    <button type="button" class="btn btn-primary btn-sm" id="auth-btn" onclick="login()">
+                                        <i class="fas fa-sign-in-alt me-1"></i>
+                                        Entrar
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" id="logout-btn" style="display: none;" onclick="logout()">
+                                        <i class="fas fa-sign-out-alt me-1"></i>
+                                        Sair
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+                {{end}}
             </div>
         </div>
     </nav>
@@ -173,14 +285,7 @@
                             
                         </div>
                         <div class="mt-3" id="databaseSelectButtons">
-                            <!-- <button type="button" class="btn btn-outline-primary btn-sm" onclick="selectAllDatabases()">
-                                <i class="fas fa-check-double me-1"></i>
-                                Selecionar Todas
-                            </button>
-                            <button type="button" class="btn btn-outline-secondary btn-sm ms-2" onclick="clearAllDatabases()">
-                                <i class="fas fa-times me-1"></i>
-                                Limpar Seleção
-                            </button> -->
+                            
                         </div>
                         <div class="mt-3">
                             <div class="col-md-12 mb-3">
@@ -263,6 +368,8 @@
         }
 
         async function nextStep() {
+            const useAuth = "{{.useAuth}}";
+
             if (!validateCurrentStep()) {
                 return;
             }
@@ -283,11 +390,10 @@
                         password: document.getElementById('password').value
                     };
 
+                    const headers = useAuth ? {'Authorization': "Bearer " + getCookie('jwt'),'Content-Type': 'application/json'} : {'Content-Type': 'application/json'};
                     const response = await fetch('http://localhost:8000/connect', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
+                        headers: headers,
                         body: JSON.stringify(connectionData)
                     });
 
@@ -300,7 +406,7 @@
                     
                 } catch (error) {
                     console.error('Erro ao conectar:', error);
-                    alert('Erro ao conectar com o banco de dados. Verifique os dados e tente novamente.');
+                    alert(`Erro ao conectar com o banco de dados. Verifique os dados e tente novamente. \nErro: ${error}`);
                     connectBtn.innerHTML = originalText;
                     connectBtn.disabled = false;
                     return;
@@ -377,9 +483,11 @@
         }
 
         async function loadDatabases() {
+            const useAuth = "{{.useAuth}}";
             const databaseContainer = document.querySelector('#step-3 .row');
             const databaseSelectButtons = document.querySelector("#databaseSelectButtons");
-            
+            const headers = useAuth ? {'Authorization': "Bearer " + getCookie('jwt'),'Content-Type': 'application/json'} : {'Content-Type': 'application/json'};
+
             try {
                 // Mostrar loading
                 databaseContainer.innerHTML = `
@@ -393,9 +501,7 @@
 
                 const response = await fetch('http://localhost:8000/databases', {
                     method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    }
+                    headers: headers,
                 });
 
                 if (!response.ok) {
@@ -578,6 +684,7 @@
         }
 
         async function executeOperation() {
+            const useAuth = "{{.useAuth}}";
             const operation = document.querySelector('input[name="operation"]:checked').value;
             const selectedDatabases = Array.from(document.querySelectorAll('#step-3 input[type="checkbox"]:checked'))
                 .map(cb => cb.value);
@@ -603,20 +710,17 @@
                 };
 
                 let response;
+                const headers = useAuth ? {'Authorization': "Bearer " + getCookie('jwt'),'Content-Type': 'application/json'} : {'Content-Type': 'application/json'};
                 if (operation === 'backup') {
                     response = await fetch('http://localhost:8000/backup', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
+                        headers: headers,
                         body: JSON.stringify(requestData)
                     });
                     } else if (operation === 'restore') {
                     response = await fetch('http://localhost:8000/restore', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
+                        headers: headers,
                         body: JSON.stringify({backupFilesPath: document.getElementById('path').value})
                     });                    
                 }           
@@ -639,6 +743,44 @@
                 btn.disabled = false;
                 btn.className = 'btn btn-success';
             }
+        }
+
+        async function login(authenticatorURL){
+            try {
+                const userDataPayload = {
+                    "email": document.getElementById('email').value,
+                    "password": document.getElementById('auth-password').value,
+                    "mfaKey": document.getElementById('mfa-token').value,
+                };
+
+                const response = await fetch('http://localhost:8081/login', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify(userDataPayload)
+                        });
+
+                if(!response.ok) {
+                    throw new Error(`Erro na operação: ${response.status}`);
+                }
+
+                const result = await response.json();
+                document.cookie = `jwt=${result.JWT}`
+                alert(`User ${result.userInfo.email} authenticated`)
+
+            }
+            catch (err){
+                console.error('Erro ao tentar autenticar-se:', err);
+                alert('Erro ao tentar autenticar-se:', err);
+            }
+            
+        }
+
+        function getCookie(name) {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
         }
 
         // Inicializar a interface

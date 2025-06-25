@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"runtime"
 
+	"github.com/RenanMonteiroS/MaestroSQLWeb/config"
 	"github.com/RenanMonteiroS/MaestroSQLWeb/controller"
 	"github.com/RenanMonteiroS/MaestroSQLWeb/repository"
 	"github.com/RenanMonteiroS/MaestroSQLWeb/service"
@@ -32,7 +33,10 @@ func main() {
 	server.POST("/restore", DatabaseController.RestoreDatabase)
 
 	server.GET("/", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "backupForm.html", gin.H{})
+		c.HTML(http.StatusOK, "backupForm.html", gin.H{
+			"useAuth":          config.UseAuthentication,
+			"authenticatorURL": config.AuthenticatorURL,
+		})
 	})
 
 	go openFile("http://localhost:8000/")
