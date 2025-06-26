@@ -125,9 +125,126 @@
         .auth-status.unauthenticated {
             color: #dc3545;
         }
+        #authModal .modal-dialog {
+            max-width: 400px;
+        }
+        #authModal .modal-header {
+            background: linear-gradient(135deg, #0d6efd 0%, #0056b3 100%);
+            color: white;
+            border-bottom: none;
+            border-radius: 0.5rem 0.5rem 0 0;
+        }
+        #authModal .modal-header .btn-close {
+            filter: invert(1) grayscale(100%) brightness(200%);
+        }
+        #authModal .modal-body {
+            padding: 2rem;
+        }
+        #authModal .form-floating {
+            margin-bottom: 1.5rem;
+        }
+        #authModal .form-floating .form-control:focus {
+            border-color: #0d6efd;
+            box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+        }
+        #authModal .btn-login {
+            background: linear-gradient(135deg, #0d6efd 0%, #0056b3 100%);
+            border: none;
+            padding: 0.75rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        #authModal .btn-login:hover {
+            background: linear-gradient(135deg, #0056b3 0%, #004792 100%);
+            transform: translateY(-1px);
+            box-shadow: 0 5px 15px rgba(19, 49, 104, 0.3);
+        }
+        #authModal .modal-content {
+            border: none;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+            border-radius: 0.75rem;
+        }
+        #authModal .auth-icon {
+            font-size: 2.5rem;
+            color: #0d6efd;
+            margin-bottom: 1rem;
+        }
+        #authModal .mfa-help {
+            font-size: 0.875rem;
+            color: #6c757d;
+            margin-top: 0.5rem;
+        }
+        .loading-spinner {
+            display: none;
+        }
     </style>
 </head>
 <body>
+
+    <div class="modal fade" id="authModal" tabindex="-1" aria-labelledby="authModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header text-center">
+                    <h5 class="modal-title w-100" id="authModalLabel">
+                        <i class="fas fa-shield-alt me-2"></i>
+                        Autenticação Necessária
+                    </h5>
+                </div>
+                <div class="modal-body text-center">
+                    <div class="auth-icon">
+                        <i class="fas fa-lock"></i>
+                    </div>
+                    <p class="text-muted mb-4">Por favor, faça login para acessar o MaestroSQL</p>
+                    
+                    <form id="modalAuthForm">
+                        <div class="form-floating mb-3">
+                            <input type="email" class="form-control" id="modalEmail" placeholder="usuario@exemplo.com" required>
+                            <label for="modalEmail">
+                                <i class="fas fa-envelope me-2"></i>E-mail
+                            </label>
+                        </div>
+                        
+                        <div class="form-floating mb-3">
+                            <input type="password" class="form-control" id="modalPassword" placeholder="••••••••" required>
+                            <label for="modalPassword">
+                                <i class="fas fa-key me-2"></i>Senha
+                            </label>
+                        </div>
+                        
+                        <div class="form-floating mb-4">
+                            <input type="text" class="form-control" id="modalMfaToken" placeholder="123456" maxlength="6">
+                            <label for="modalMfaToken">
+                                <i class="fas fa-mobile-alt me-2"></i>Token MFA
+                            </label>
+                            <div class="mfa-help">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Código de 6 dígitos do seu app autenticador
+                            </div>
+                        </div>
+                        
+                        <button type="button" class="btn btn-primary btn-login w-100" id="modalLoginBtn" onclick="modalLogin()">
+                            <span class="login-text">
+                                <i class="fas fa-sign-in-alt me-2"></i>
+                                Entrar
+                            </span>
+                            <span class="loading-spinner">
+                                <i class="fas fa-spinner fa-spin me-2"></i>
+                                Autenticando...
+                            </span>
+                        </button>
+                    </form>
+                    
+                    <div class="mt-3">
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle me-1"></i>
+                            Acesso seguro protegido por autenticação multifator
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
@@ -171,30 +288,8 @@
                                 <span>Não autenticado</span>
                             </div>
                             
-                            <form id="auth-form">
-                                <div class="mb-3">
-                                    <label for="email" class="form-label">E-mail</label>
-                                    <input type="email" class="form-control form-control-sm" id="email" placeholder="usuario@exemplo.com" required>
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label for="auth-password" class="form-label">Senha</label>
-                                    <input type="password" class="form-control form-control-sm" id="auth-password" placeholder="••••••••" required>
-                                </div>
-                                
-                                <div class="mb-3">
-                                    <label for="mfa-token" class="form-label">Token MFA</label>
-                                    <input type="text" class="form-control form-control-sm" id="mfa-token" placeholder="123456" maxlength="6">
-                                    <div class="form-text">
-                                        <small>Código de 6 dígitos do seu app autenticador</small>
-                                    </div>
-                                </div>
-                                
+                            <form id="auth-form">                                
                                 <div class="d-grid gap-2">
-                                    <button type="button" class="btn btn-primary btn-sm" id="auth-btn" onclick="login()">
-                                        <i class="fas fa-sign-in-alt me-1"></i>
-                                        Entrar
-                                    </button>
                                     <button type="button" class="btn btn-outline-secondary btn-sm" id="logout-btn" style="display: none;" onclick="logout()">
                                         <i class="fas fa-sign-out-alt me-1"></i>
                                         Sair
@@ -336,7 +431,121 @@
     <script>
         let currentStep = 1;
         const totalSteps = 4;
+        let authModal;
+        const useAuth = "{{.useAuth}}";
+        const authenticatorURL = "{{.authenticatorURL}}";
 
+        document.addEventListener('DOMContentLoaded', function() {
+            if (useAuth) {
+                authModal = new bootstrap.Modal(document.getElementById('authModal'), {
+                            backdrop: 'static',
+                            keyboard: false
+                });
+                checkAuthenticationStatus();
+                updateAuthStatus(isAuth(), getCookie('userEmail'));
+            }
+        });
+
+        async function checkAuthenticationStatus() {
+            const jwt = getCookie('jwt');
+            
+            if (!jwt || jwt.trim() === '') {
+                authModal.show();
+            } else {
+                const response = await fetch(`${authenticatorURL}/isValid`, {
+                    headers: {
+                        "Authorization": `Bearer ${jwt}` 
+                    }
+                });
+
+                if (!response.ok) {
+                    authModal.show();
+                }
+            }            
+        }
+
+        async function modalLogin() {
+            const loginBtn = document.getElementById('modalLoginBtn');
+            const loginText = loginBtn.querySelector('.login-text');
+            const loadingSpinner = loginBtn.querySelector('.loading-spinner');
+            
+            try {
+                // Mostrar loading
+                loginText.style.display = 'none';
+                loadingSpinner.style.display = 'inline';
+                loginBtn.disabled = true;
+
+                const userDataPayload = {
+                    "email": document.getElementById('modalEmail').value,
+                    "password": document.getElementById('modalPassword').value,
+                    "mfaKey": document.getElementById('modalMfaToken').value,
+                };
+
+                const response = await fetch(`${authenticatorURL}/login`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(userDataPayload)
+                });
+
+                const result = {"status": await response.status, "body": await response.json()};
+
+                if (!response.ok) {
+                    throw new Error(`Status: ${result.status}\nErro: ${result.body.msg}`);
+                }
+                
+                document.cookie = `jwt=${result.body.JWT}; path=/`;
+                document.cookie = `userEmail=${result.body.userInfo.email}; path=/`;
+                
+                // Fechar o modal
+                authModal.hide();
+                
+                // Mostrar mensagem de sucesso
+                setTimeout(() => {
+                    alert(`Usuário ${result.body.userInfo.email} autenticado com sucesso!`);
+                }, 300);
+
+                // Atualizar status de autenticação se existir
+                updateAuthStatus(true, result.body.userInfo.email);
+
+            } catch (err) {
+                console.error('Erro ao tentar autenticar-se:', err);
+                alert(`Erro ao tentar autenticar-se: ${err.message}`);
+            } finally {
+                // Restaurar botão
+                loginText.style.display = 'inline';
+                loadingSpinner.style.display = 'none';
+                loginBtn.disabled = false;
+            }
+        }
+
+        function updateAuthStatus(authenticated, email = '') {
+            const authStatus = document.getElementById('auth-status');
+            const authBtn = document.getElementById('auth-btn');
+            const logoutBtn = document.getElementById('logout-btn');
+            
+            if (authStatus) {
+                if (authenticated) {
+                    authStatus.className = 'auth-status authenticated mb-3';
+                    authStatus.innerHTML = `
+                        <i class="fas fa-check-circle"></i>
+                        <span>Autenticado como ${email}</span>
+                    `;
+                    if (authBtn) authBtn.style.display = 'none';
+                    if (logoutBtn) logoutBtn.style.display = 'block';
+                } else {
+                    authStatus.className = 'auth-status unauthenticated mb-3';
+                    authStatus.innerHTML = `
+                        <i class="fas fa-exclamation-circle"></i>
+                        <span>Não autenticado</span>
+                    `;
+                    if (authBtn) authBtn.style.display = 'block';
+                    if (logoutBtn) logoutBtn.style.display = 'none';
+                }
+            }
+        }
+        
         function updateStepNavigation() {
             for (let i = 1; i <= totalSteps; i++) {
                 const stepNav = document.getElementById(`step-nav-${i}`);
@@ -368,8 +577,6 @@
         }
 
         async function nextStep() {
-            const useAuth = "{{.useAuth}}";
-
             if (!validateCurrentStep()) {
                 return;
             }
@@ -397,16 +604,17 @@
                         body: JSON.stringify(connectionData)
                     });
 
+                    const result = {"status": await response.status, "body": await response.json()};
+
                     if (!response.ok) {
-                        throw new Error(`Erro na conexão: ${response.status}`);
+                        throw new Error(`Status: ${result.status}\nErro: ${result.body.msg}`);
                     }
 
-                    const result = await response.json();
-                    console.log('Conexão estabelecida:', result);
+                    console.log('Conexão estabelecida:', result.body.msg);
                     
                 } catch (error) {
-                    console.error('Erro ao conectar:', error);
-                    alert(`Erro ao conectar com o banco de dados. Verifique os dados e tente novamente. \nErro: ${error}`);
+                    console.error('Erro ao conectar:', error.message);
+                    alert(`Erro ao conectar com o banco de dados. Verifique os dados e tente novamente. \n${error.message}`);
                     connectBtn.innerHTML = originalText;
                     connectBtn.disabled = false;
                     return;
@@ -483,7 +691,6 @@
         }
 
         async function loadDatabases() {
-            const useAuth = "{{.useAuth}}";
             const databaseContainer = document.querySelector('#step-3 .row');
             const databaseSelectButtons = document.querySelector("#databaseSelectButtons");
             const headers = useAuth ? {'Authorization': "Bearer " + getCookie('jwt'),'Content-Type': 'application/json'} : {'Content-Type': 'application/json'};
@@ -505,7 +712,7 @@
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Erro ao carregar databases: ${response.status}`);
+                    throw new Error(`Status: ${result.status}\nErro: ${result.body.msg}`);
                 }
 
                 const databases = await response.json();
@@ -544,18 +751,16 @@
                             </button>`
                 
             } catch (error) {
-                console.error('Erro ao carregar databases:', error);
+                console.error('Erro ao carregar databases:', error.message);
                 databaseContainer.innerHTML = `
                     <div class="col-12">
                         <div class="alert alert-danger">
                             <i class="fas fa-exclamation-triangle me-2"></i>
-                            Erro ao carregar as bases de dados. Usando bases padrão.
+                            Erro ao carregar as bases de dados.
                         </div>
                     </div>
                 `;
                 
-                // Fallback para databases padrão em caso de erro
-                loadDefaultDatabases(databaseContainer);
             }
         }
 
@@ -578,40 +783,7 @@
             }
             return iconMap.default;
         }
-
-        function loadDefaultDatabases(container) {
-            const defaultDatabases = [
-                { name: 'usuarios', display_name: 'Base de Usuários' },
-                { name: 'produtos', display_name: 'Base de Produtos' },
-                { name: 'vendas', display_name: 'Base de Vendas' },
-                { name: 'relatorios', display_name: 'Base de Relatórios' },
-                { name: 'configuracoes', display_name: 'Base de Configurações' },
-                { name: 'logs', display_name: 'Base de Logs' }
-            ];
-
-            let databasesHTML = '<div class="col-md-6">';
-            defaultDatabases.forEach((db, index) => {
-                if (index === 3) {
-                    databasesHTML += '</div><div class="col-md-6">';
-                }
-                
-                const icon = getDatabaseIcon(db.name);
-                
-                databasesHTML += `
-                    <div class="form-check mb-3">
-                        <input class="form-check-input" type="checkbox" id="db-${db.name}" value="${db.name}">
-                        <label class="form-check-label" for="db-${db.name}">
-                            <i class="${icon} me-2"></i>
-                            ${db.display_name}
-                        </label>
-                    </div>
-                `;
-            });
-            databasesHTML += '</div>';
-
-            container.innerHTML = databasesHTML;
-        }
-
+        
         function selectAllDatabases() {
             const checkboxes = document.querySelectorAll('#step-3 input[type="checkbox"]');
             checkboxes.forEach(checkbox => checkbox.checked = true);
@@ -684,11 +856,10 @@
         }
 
         async function executeOperation() {
-            const useAuth = "{{.useAuth}}";
             const operation = document.querySelector('input[name="operation"]:checked').value;
             const selectedDatabases = Array.from(document.querySelectorAll('#step-3 input[type="checkbox"]:checked'))
                 .map(cb => cb.value);
-            
+                
             if (!confirm(`Tem certeza que deseja executar a operação de ${operation.toUpperCase()} em ${selectedDatabases.length} base(s) de dados?`)) {
                 return;
             }
@@ -725,11 +896,12 @@
                     });                    
                 }           
                 
+                const result = {"status": await response.status, "body": await response.json()};
+
                 if (!response.ok) {
-                    throw new Error(`Erro na operação: ${response.status}`);
+                    throw new Error(`Status: ${result.status}\nErro: ${result.body.msg}`);
                 }
 
-                const result = await response.json();
                 console.log('Operação executada:', result);
                 
                 alert(`Operação de ${operation.toUpperCase()} executada com sucesso!`);
@@ -737,44 +909,19 @@
                 btn.className = 'btn btn-success';
                 
             } catch (error) {
-                console.error('Erro na operação:', error);
-                alert(`Erro ao executar a operação de ${operation.toUpperCase()}. Verifique a conexão com o servidor.`);
+                console.error('Erro na operação: \n', error.message);
+                alert(`Erro ao executar a operação de ${operation.toUpperCase()}. Verifique a conexão com o servidor. \n${error.message}`);
                 btn.innerHTML = originalText;
                 btn.disabled = false;
                 btn.className = 'btn btn-success';
             }
         }
 
-        async function login(authenticatorURL){
-            try {
-                const userDataPayload = {
-                    "email": document.getElementById('email').value,
-                    "password": document.getElementById('auth-password').value,
-                    "mfaKey": document.getElementById('mfa-token').value,
-                };
-
-                const response = await fetch('http://localhost:8081/login', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                            },
-                            body: JSON.stringify(userDataPayload)
-                        });
-
-                if(!response.ok) {
-                    throw new Error(`Erro na operação: ${response.status}`);
-                }
-
-                const result = await response.json();
-                document.cookie = `jwt=${result.JWT}`
-                alert(`User ${result.userInfo.email} authenticated`)
-
-            }
-            catch (err){
-                console.error('Erro ao tentar autenticar-se:', err);
-                alert('Erro ao tentar autenticar-se:', err);
-            }
-            
+        function logout() {
+            document.cookie = 'jwt=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+            document.cookie = 'userEmail=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+            updateAuthStatus(false);
+            checkAuthenticationStatus(); // Mostrar modal novamente
         }
 
         function getCookie(name) {
@@ -783,6 +930,16 @@
             if (parts.length === 2) return parts.pop().split(';').shift();
         }
 
+        function isAuth(){
+            const jwt = getCookie('jwt');
+
+            if (typeof jwt === 'undefined') {
+                return false;
+            } else {
+                return true;
+            }
+        }
+        
         // Inicializar a interface
         updateStepNavigation();
     </script>
