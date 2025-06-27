@@ -1,6 +1,6 @@
 package config
 
 const (
-	UseAuthentication = true
-	AuthenticatorURL  = "http://localhost:8081"
+	UseAuthentication = true // true/false
+	AuthenticatorURL  = "http://192.168.1.66:8081"
 )

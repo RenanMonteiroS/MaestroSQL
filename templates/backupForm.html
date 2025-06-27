@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MaestroSQL</title>
+    <link rel="icon" type="image/x-icon" href="https://rmonteiroproj.blob.core.windows.net/images/conductor.ico">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <style>
@@ -187,18 +188,18 @@
                 <div class="modal-header text-center">
                     <h5 class="modal-title w-100" id="authModalLabel">
                         <i class="fas fa-shield-alt me-2"></i>
-                        Autenticação Necessária
+                        Authentication Required
                     </h5>
                 </div>
                 <div class="modal-body text-center">
                     <div class="auth-icon">
                         <i class="fas fa-lock"></i>
                     </div>
-                    <p class="text-muted mb-4">Por favor, faça login para acessar o MaestroSQL</p>
+                    <p class="text-muted mb-4">Please login to access MaestroSQL</p>
                     
                     <form id="modalAuthForm">
                         <div class="form-floating mb-3">
-                            <input type="email" class="form-control" id="modalEmail" placeholder="usuario@exemplo.com" required>
+                            <input type="email" class="form-control" id="modalEmail" placeholder="user@example.com" required>
                             <label for="modalEmail">
                                 <i class="fas fa-envelope me-2"></i>E-mail
                             </label>
@@ -207,29 +208,29 @@
                         <div class="form-floating mb-3">
                             <input type="password" class="form-control" id="modalPassword" placeholder="••••••••" required>
                             <label for="modalPassword">
-                                <i class="fas fa-key me-2"></i>Senha
+                                <i class="fas fa-key me-2"></i>Password
                             </label>
                         </div>
                         
                         <div class="form-floating mb-4">
                             <input type="text" class="form-control" id="modalMfaToken" placeholder="123456" maxlength="6">
                             <label for="modalMfaToken">
-                                <i class="fas fa-mobile-alt me-2"></i>Token MFA
+                                <i class="fas fa-mobile-alt me-2"></i>MFA Token
                             </label>
                             <div class="mfa-help">
                                 <i class="fas fa-info-circle me-1"></i>
-                                Código de 6 dígitos do seu app autenticador
+                                6-digit code from your authenticator app
                             </div>
                         </div>
                         
                         <button type="button" class="btn btn-primary btn-login w-100" id="modalLoginBtn" onclick="modalLogin()">
                             <span class="login-text">
                                 <i class="fas fa-sign-in-alt me-2"></i>
-                                Entrar
+                                Login
                             </span>
                             <span class="loading-spinner">
                                 <i class="fas fa-spinner fa-spin me-2"></i>
-                                Autenticando...
+                                Authenticating...
                             </span>
                         </button>
                     </form>
@@ -237,7 +238,7 @@
                     <div class="mt-3">
                         <small class="text-muted">
                             <i class="fas fa-info-circle me-1"></i>
-                            Acesso seguro protegido por autenticação multifator
+                            Secure access protected by multi-factor authentication
                         </small>
                     </div>
                 </div>
@@ -255,23 +256,23 @@
             <div class="navbar-nav ms-auto d-flex flex-row align-items-center">
                 <div class="step-item" id="step-nav-1">
                     <i class="fas fa-server me-1"></i>
-                    Conexão
+                    Connection
                 </div>
                 <div class="step-item" id="step-nav-2">
                     <i class="fas fa-cogs me-1"></i>
-                    Operação
+                    Operation
                 </div>
                 <div class="step-item" id="step-nav-3">
                     <i class="fas fa-database me-1"></i>
-                    Bases de Dados
+                    Databases
                 </div>
                 <div class="step-item" id="step-nav-4">
                     <i class="fas fa-clipboard-check me-1"></i>
-                    Resumo
+                    Summary
                 </div>
 
                 {{if .useAuth}}    
-                <!-- Menu do Usuário -->
+                <!-- User card -->
                 <div class="user-menu dropdown ms-3">
                     <div class="user-icon" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="fas fa-user"></i>
@@ -280,19 +281,19 @@
                         <div class="auth-form">
                             <h6 class="text-center mb-3">
                                 <i class="fas fa-shield-alt me-2"></i>
-                                Autenticação
+                                Authentication
                             </h6>
                             
                             <div class="auth-status unauthenticated mb-3" id="auth-status">
                                 <i class="fas fa-exclamation-circle"></i>
-                                <span>Não autenticado</span>
+                                <span>Not authenticated</span>
                             </div>
                             
                             <form id="auth-form">                                
                                 <div class="d-grid gap-2">
                                     <button type="button" class="btn btn-outline-secondary btn-sm" id="logout-btn" style="display: none;" onclick="logout()">
                                         <i class="fas fa-sign-out-alt me-1"></i>
-                                        Sair
+                                        Exit
                                     </button>
                                 </div>
                             </form>
@@ -308,11 +309,11 @@
         <div class="row justify-content-center">
             <div class="col-lg-8">
                 <div class="form-container">
-                    <!-- Step 1: Conexão com Banco de Dados -->
+                    <!-- Step 1: Database Connection -->
                     <div class="step-content active" id="step-1">
                         <h3 class="mb-4">
                             <i class="fas fa-server text-primary me-2"></i>
-                            Configuração de Conexão
+                            Connection Configuration
                         </h3>
                         <form id="connection-form">
                             <div class="row">
@@ -321,28 +322,28 @@
                                     <input type="text" class="form-control" id="host" placeholder="localhost" required>
                                 </div>
                                 <div class="col-md-6 mb-3">
-                                    <label for="port" class="form-label">Porta</label>
-                                    <input type="number" class="form-control" id="port" placeholder="5432" required>
+                                    <label for="port" class="form-label">Port</label>
+                                    <input type="number" class="form-control" id="port" placeholder="1433" required>
                                 </div>
                             </div>
                             <div class="row">
                                 <div class="col-md-6 mb-3">
-                                    <label for="user" class="form-label">Usuário</label>
-                                    <input type="text" class="form-control" id="user" placeholder="admin" required>
+                                    <label for="user" class="form-label">User</label>
+                                    <input type="text" class="form-control" id="user" placeholder="sa" required>
                                 </div>
                                 <div class="col-md-6 mb-3">
-                                    <label for="password" class="form-label">Senha</label>
+                                    <label for="password" class="form-label">Password</label>
                                     <input type="password" class="form-control" id="password" placeholder="••••••••" required>
                                 </div>
                             </div>
                         </form>
                     </div>
 
-                    <!-- Step 2: Operação -->
+                    <!-- Step 2: Operation -->
                     <div class="step-content" id="step-2">
                         <h3 class="mb-4">
                             <i class="fas fa-cogs text-primary me-2"></i>
-                            Selecionar Operação
+                            Select Operation
                         </h3>
                         <div class="row">
                             <div class="col-md-6">
@@ -352,7 +353,7 @@
                                         <i class="fas fa-download text-success me-2"></i>
                                         <strong>Backup</strong>
                                         <br>
-                                        <small class="text-muted">Criar cópia de segurança das bases de dados</small>
+                                        <small class="text-muted">Create a backup of the databases</small>
                                     </label>
                                 </div>
                             </div>
@@ -363,18 +364,18 @@
                                         <i class="fas fa-upload text-warning me-2"></i>
                                         <strong>Restore</strong>
                                         <br>
-                                        <small class="text-muted">Restaurar bases de dados a partir de backup</small>
+                                        <small class="text-muted">Restore databases from backup</small>
                                     </label>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Step 3: Seleção de Bases de Dados -->
+                    <!-- Step 3: Database Selection -->
                     <div class="step-content" id="step-3">
                         <h3 class="mb-4">
                             <i class="fas fa-database text-primary me-2"></i>
-                            Selecionar Bases de Dados
+                            Select Databases
                         </h3>
                         <div class="row">
                             
@@ -384,41 +385,41 @@
                         </div>
                         <div class="mt-3">
                             <div class="col-md-12 mb-3">
-                                <label for="path" class="form-label">Caminho dos backups</label>
+                                <label for="path" class="form-label">Backups path</label>
                                 <input type="text" class="form-control" id="path" placeholder="C:/Backups" required>
                            </div>                           
                         </div>
                     </div>
 
-                    <!-- Step 4: Resumo -->
+                    <!-- Step 4: Summary -->
                     <div class="step-content" id="step-4">
                         <h3 class="mb-4">
                             <i class="fas fa-clipboard-check text-primary me-2"></i>
-                            Resumo da Configuração
+                            Operation summary
                         </h3>
                         <div id="summary-content">
-                            <!-- O conteúdo será preenchido via JavaScript -->
+                            <!-- Content will be populated via JavaScript -->
                         </div>
                         <div class="alert alert-info mt-4">
                             <i class="fas fa-info-circle me-2"></i>
-                            Verifique todas as informações antes de executar a operação.
+                            Please verify all information before performing the operation.
                         </div>
                     </div>
 
-                    <!-- Botões de Navegação -->
+                    <!-- Navigation Buttons -->
                     <div class="btn-container d-flex justify-content-between">
                         <button type="button" class="btn btn-secondary" id="prev-btn" onclick="previousStep()" disabled>
                             <i class="fas fa-arrow-left me-1"></i>
-                            Anterior
+                            Previous
                         </button>
                         <div>
                             <button type="button" class="btn btn-primary" id="next-btn" onclick="nextStep()">
-                                Próximo
+                                Next
                                 <i class="fas fa-arrow-right ms-1"></i>
                             </button>
                             <button type="button" class="btn btn-success d-none" id="execute-btn" onclick="executeOperation()">
                                 <i class="fas fa-play me-1"></i>
-                                Executar Operação
+                                Execute operation
                             </button>
                         </div>
                     </div>
@@ -432,45 +433,44 @@
         let currentStep = 1;
         const totalSteps = 4;
         let authModal;
-        const useAuth = "{{.useAuth}}";
+
+        //These variables will be replaced by Go
+        const useAuth = {{ .useAuth }};
         const authenticatorURL = "{{.authenticatorURL}}";
 
-        document.addEventListener('DOMContentLoaded', function() {
+        //When the document is loaded...
+        document.addEventListener('DOMContentLoaded', async function() {   
             if (useAuth) {
+                const isAuthResult = await isAuth();
                 authModal = new bootstrap.Modal(document.getElementById('authModal'), {
                             backdrop: 'static',
                             keyboard: false
                 });
                 checkAuthenticationStatus();
-                updateAuthStatus(isAuth(), getCookie('userEmail'));
+                updateAuthStatus(isAuthResult, getCookie('userEmail'));
             }
         });
 
-        async function checkAuthenticationStatus() {
-            const jwt = getCookie('jwt');
-            
-            if (!jwt || jwt.trim() === '') {
+        /**
+         * If the user is not authenticated, then shows the modal
+        */
+        async function checkAuthenticationStatus() { 
+            if (!(await isAuth())) {
                 authModal.show();
-            } else {
-                const response = await fetch(`${authenticatorURL}/isValid`, {
-                    headers: {
-                        "Authorization": `Bearer ${jwt}` 
-                    }
-                });
-
-                if (!response.ok) {
-                    authModal.show();
-                }
-            }            
+            }     
         }
 
+        /**
+         * Handles the modal for perform login, from the fade in/out and alerts to HTTP request to the authenticator.
+         * @throws {Error} Throws an error then the backend returns a bad HTTP status code
+        */
         async function modalLogin() {
             const loginBtn = document.getElementById('modalLoginBtn');
             const loginText = loginBtn.querySelector('.login-text');
             const loadingSpinner = loginBtn.querySelector('.loading-spinner');
             
             try {
-                // Mostrar loading
+                // Shows loading
                 loginText.style.display = 'none';
                 loadingSpinner.style.display = 'inline';
                 loginBtn.disabled = true;
@@ -492,34 +492,39 @@
                 const result = {"status": await response.status, "body": await response.json()};
 
                 if (!response.ok) {
-                    throw new Error(`Status: ${result.status}\nErro: ${result.body.msg}`);
+                    throw new Error(`Status: ${result.status}\nError: ${result.body.msg}`);
                 }
                 
                 document.cookie = `jwt=${result.body.JWT}; path=/`;
                 document.cookie = `userEmail=${result.body.userInfo.email}; path=/`;
                 
-                // Fechar o modal
+                // Closes the modal
                 authModal.hide();
                 
-                // Mostrar mensagem de sucesso
+                // Shows a success message
                 setTimeout(() => {
-                    alert(`Usuário ${result.body.userInfo.email} autenticado com sucesso!`);
+                    alert(`User ${result.body.userInfo.email} authenticated successfully!`);
                 }, 300);
 
-                // Atualizar status de autenticação se existir
+                // Updates the authentication status in the auth card
                 updateAuthStatus(true, result.body.userInfo.email);
 
             } catch (err) {
-                console.error('Erro ao tentar autenticar-se:', err);
-                alert(`Erro ao tentar autenticar-se: ${err.message}`);
+                console.error('Authentication error:', err);
+                alert(`Authentication error: ${err.message}`);
             } finally {
-                // Restaurar botão
+                // Restores the button
                 loginText.style.display = 'inline';
                 loadingSpinner.style.display = 'none';
                 loginBtn.disabled = false;
             }
         }
 
+        /**
+         * Updates the authentication status, present in the auth card.
+         * @param {boolean} authenticated - If the user is authenticated or not
+         * @param {string} - The e-mail of the user who is authenticated
+        */
         function updateAuthStatus(authenticated, email = '') {
             const authStatus = document.getElementById('auth-status');
             const authBtn = document.getElementById('auth-btn');
@@ -530,7 +535,7 @@
                     authStatus.className = 'auth-status authenticated mb-3';
                     authStatus.innerHTML = `
                         <i class="fas fa-check-circle"></i>
-                        <span>Autenticado como ${email}</span>
+                        <span>Authenticated as ${email}</span>
                     `;
                     if (authBtn) authBtn.style.display = 'none';
                     if (logoutBtn) logoutBtn.style.display = 'block';
@@ -538,7 +543,7 @@
                     authStatus.className = 'auth-status unauthenticated mb-3';
                     authStatus.innerHTML = `
                         <i class="fas fa-exclamation-circle"></i>
-                        <span>Não autenticado</span>
+                        <span>Not authenticated</span>
                     `;
                     if (authBtn) authBtn.style.display = 'block';
                     if (logoutBtn) logoutBtn.style.display = 'none';
@@ -546,6 +551,9 @@
             }
         }
         
+        /**
+         * Updates the navbar button colors
+        */
         function updateStepNavigation() {
             for (let i = 1; i <= totalSteps; i++) {
                 const stepNav = document.getElementById(`step-nav-${i}`);
@@ -563,7 +571,7 @@
                 }
             }
 
-            // Atualizar botões
+            // Updates the navbar buttons
             document.getElementById('prev-btn').disabled = currentStep === 1;
             
             if (currentStep === totalSteps) {
@@ -576,12 +584,15 @@
             }
         }
 
+        /**
+         * Once the "next" button is pressed, this function is called. It checks the current step and manage the form workflow
+        */
         async function nextStep() {
             if (!validateCurrentStep()) {
                 return;
             }
 
-            // Requisição POST para conectar quando sair do step 1
+            // Makes a POST request to /connect, establishing a connection with the database
             if (currentStep === 1) {
                 const connectBtn = document.getElementById('next-btn');
                 const originalText = connectBtn.innerHTML;
@@ -607,14 +618,14 @@
                     const result = {"status": await response.status, "body": await response.json()};
 
                     if (!response.ok) {
-                        throw new Error(`Status: ${result.status}\nErro: ${result.body.msg}`);
+                        throw new Error(`Status: ${result.status}\nError: ${result.body.msg}`);
                     }
 
-                    console.log('Conexão estabelecida:', result.body.msg);
+                    console.log('Connection established:', result.body.msg);
                     
                 } catch (error) {
-                    console.error('Erro ao conectar:', error.message);
-                    alert(`Erro ao conectar com o banco de dados. Verifique os dados e tente novamente. \n${error.message}`);
+                    console.error('Error connecting:', error.message);
+                    alert(`Error connecting to database. Please check the data and try again. \n${error.message}`);
                     connectBtn.innerHTML = originalText;
                     connectBtn.disabled = false;
                     return;
@@ -628,7 +639,7 @@
                 currentStep++;
                 updateStepNavigation();
                 
-                // Carregar bases de dados quando entrar no step 3
+                // Loads the databases allocated in the server
                 if (currentStep === 3 && document.querySelector('input[name="operation"]:checked').value === 'backup') {
                     const databaseContainer = document.querySelector('#step-3 .row');
                     const databaseSelectButtons = document.querySelector("#databaseSelectButtons");
@@ -648,6 +659,9 @@
             }
         }
 
+        /**
+         * Returns to the last step
+        */
         function previousStep() {
             if (currentStep > 1) {
                 currentStep--;
@@ -655,6 +669,9 @@
             }
         }
 
+        /**
+         * Checks the current step. If something is empty it alerts to the user fill it in.
+        */
         function validateCurrentStep() {
             switch (currentStep) {
                 case 1:
@@ -664,7 +681,7 @@
                     const password = document.getElementById('password').value;
                     
                     if (!host || !port || !user || !password) {
-                        alert('Por favor, preencha todos os campos de conexão.');
+                        alert('Please fill in all fields.');
                         return false;
                     }
                     return true;
@@ -672,7 +689,7 @@
                 case 2:
                     const operation = document.querySelector('input[name="operation"]:checked');
                     if (!operation) {
-                        alert('Por favor, selecione uma operação.');
+                        alert('Please select an operation.');
                         return false;
                     }
                     return true;
@@ -680,7 +697,7 @@
                 case 3:
                     const databases = document.querySelectorAll('input[type="checkbox"]:checked');
                     if (databases.length === 0 && document.querySelector('input[name="operation"]:checked').value === 'backup' ) {
-                        alert('Por favor, selecione pelo menos uma base de dados.');
+                        alert('Please select at least one database.');
                         return false;
                     }
                     return true;
@@ -690,41 +707,46 @@
             }
         }
 
+        /**
+         * Makes a GET request to the backend, collecting all the databases in the server and generating the dynamic HTML content
+         * @throws {Error} Throws an error then the backend returns a bad HTTP status code
+        */
         async function loadDatabases() {
             const databaseContainer = document.querySelector('#step-3 .row');
             const databaseSelectButtons = document.querySelector("#databaseSelectButtons");
             const headers = useAuth ? {'Authorization': "Bearer " + getCookie('jwt'),'Content-Type': 'application/json'} : {'Content-Type': 'application/json'};
 
             try {
-                // Mostrar loading
+                // Shows loading
                 databaseContainer.innerHTML = `
                     <div class="col-12 text-center">
                         <div class="spinner-border text-primary" role="status">
-                            <span class="visually-hidden">Carregando...</span>
+                            <span class="visually-hidden">Loading...</span>
                         </div>
-                        <p class="mt-2">Carregando bases de dados...</p>
+                        <p class="mt-2">Loading Databases...</p>
                     </div>
                 `;
 
+                //Fetchs the backend /databases endpoint
                 const response = await fetch('http://localhost:8000/databases', {
                     method: 'GET',
                     headers: headers,
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Status: ${result.status}\nErro: ${result.body.msg}`);
+                    throw new Error(`Status: ${result.status}\nError: ${result.body.msg}`);
                 }
 
                 const databases = await response.json();
                 
-                // Gerar checkboxes dinamicamente baseado na resposta da API
+                // Generate checkboxes dynamically based on backend response
                 let databasesHTML = '<div class="col-md-6">';
                 databases.forEach((db, index) => {
                     if (index === Math.ceil(databases.length / 2)) {
                         databasesHTML += '</div><div class="col-md-6">';
                     }
                     
-                    const icon = getDatabaseIcon(db.name || db);
+                    const icon = 'fas fa-database';
                     const displayName = db.display_name || db.name || db;
                     const value = db.name || db;
                     
@@ -743,57 +765,46 @@
                 databaseContainer.innerHTML = databasesHTML;
                 databaseSelectButtons.innerHTML = `<button type="button" class="btn btn-outline-primary btn-sm" onclick="selectAllDatabases()">
                                 <i class="fas fa-check-double me-1"></i>
-                                Selecionar Todas
+                                Select all
                             </button>
                             <button type="button" class="btn btn-outline-secondary btn-sm ms-2" onclick="clearAllDatabases()">
                                 <i class="fas fa-times me-1"></i>
-                                Limpar Seleção
+                                Clear selection
                             </button>`
                 
             } catch (error) {
-                console.error('Erro ao carregar databases:', error.message);
+                console.error('Error loading databases:', error.message);
                 databaseContainer.innerHTML = `
                     <div class="col-12">
                         <div class="alert alert-danger">
                             <i class="fas fa-exclamation-triangle me-2"></i>
-                            Erro ao carregar as bases de dados.
+                            Error loading databases.
                         </div>
                     </div>
                 `;
                 
             }
         }
-
-        function getDatabaseIcon(dbName) {
-            const iconMap = {
-                'usuarios': 'fas fa-users',
-                'produtos': 'fas fa-box',
-                'vendas': 'fas fa-shopping-cart',
-                'relatorios': 'fas fa-chart-bar',
-                'configuracoes': 'fas fa-cog',
-                'logs': 'fas fa-file-alt',
-                'default': 'fas fa-database'
-            };
-            
-            const lowerName = dbName.toLowerCase();
-            for (const [key, icon] of Object.entries(iconMap)) {
-                if (lowerName.includes(key)) {
-                    return icon;
-                }
-            }
-            return iconMap.default;
-        }
         
+        /**
+         * Checks all checkboxes in "step 3" related to databases
+        */
         function selectAllDatabases() {
             const checkboxes = document.querySelectorAll('#step-3 input[type="checkbox"]');
             checkboxes.forEach(checkbox => checkbox.checked = true);
         }
 
+        /**
+         * Clear all checkboxes in "step 3" related to databases
+        */
         function clearAllDatabases() {
             const checkboxes = document.querySelectorAll('#step-3 input[type="checkbox"]');
             checkboxes.forEach(checkbox => checkbox.checked = false);
         }
 
+        /**
+         * Generates the full sumary in the last step. Inserts the HTML content dynamically in "summary-content"
+        */
         function generateSummary() {
             const host = document.getElementById('host').value;
             const port = document.getElementById('port').value;
@@ -807,20 +818,20 @@
                 <div class="summary-item">
                     <div class="summary-label">
                         <i class="fas fa-server me-2"></i>
-                        Conexão com Banco de Dados
+                        Database connection
                     </div>
                     <div class="summary-value">
                         <strong>Host:</strong> ${host}<br>
-                        <strong>Porta:</strong> ${port}<br>
-                        <strong>Usuário:</strong> ${user}<br>
-                        <strong>Senha:</strong> ••••••••
+                        <strong>Port:</strong> ${port}<br>
+                        <strong>User:</strong> ${user}<br>
+                        <strong>Password:</strong> ••••••••
                     </div>
                 </div>
                 
                 <div class="summary-item">
                     <div class="summary-label">
                         <i class="fas fa-cogs me-2"></i>
-                        Operação Selecionada
+                        Selected operation
                     </div>
                     <div class="summary-value">
                         <span class="badge ${operation === 'backup' ? 'bg-success' : 'bg-warning'}">
@@ -832,7 +843,7 @@
                 <div class="summary-item">
                     <div class="summary-label">
                         <i class="fas fa-folder-open me-2"></i>
-                        Caminho do(s) Backup(s):
+                        Backup path:
                     </div>
                     <div class="summary-value">
                         ${path}<br>
@@ -844,7 +855,7 @@
                 summaryHTML += `<div class="summary-item">
                         <div class="summary-label">
                             <i class="fas fa-database me-2"></i>
-                            Bases de Dados Selecionadas (${selectedDatabases.length})
+                            Selected databases (${selectedDatabases.length})
                         </div>
                         <div class="summary-value">
                             ${selectedDatabases.map(db => `<span class="badge bg-primary me-1 mb-1">${db}</span>`).join('')}
@@ -855,12 +866,18 @@
             document.getElementById('summary-content').innerHTML = summaryHTML;
         }
 
+        /**
+         * Executes the operation restore or backup.
+         * If the restore operation is selected, it performs a HTTP request to /restore. 
+         * If the backup operation is selected, it performs a HTTP request to /backup.
+         * @throws {Error} If something did wrong in the HTTP requests.
+        */
         async function executeOperation() {
             const operation = document.querySelector('input[name="operation"]:checked').value;
             const selectedDatabases = Array.from(document.querySelectorAll('#step-3 input[type="checkbox"]:checked'))
                 .map(cb => cb.value);
                 
-            if (!confirm(`Tem certeza que deseja executar a operação de ${operation.toUpperCase()} em ${selectedDatabases.length} base(s) de dados?`)) {
+            if (!confirm(`Are you sure you want to perform the ${operation.toUpperCase()} operation on ${selectedDatabases.length} database(s)?`)) {
                 return;
             }
 
@@ -868,10 +885,9 @@
             const originalText = btn.innerHTML;
             
             try {
-                btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Executando...';
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Running...';
                 btn.disabled = true;
 
-                // Preparar dados para a requisição
                 const requestData = {
                     databases: 
                         selectedDatabases.map(db => {
@@ -899,48 +915,69 @@
                 const result = {"status": await response.status, "body": await response.json()};
 
                 if (!response.ok) {
-                    throw new Error(`Status: ${result.status}\nErro: ${result.body.msg}`);
+                    throw new Error(`Status: ${result.status}\nError: ${result.body.msg}`);
                 }
 
-                console.log('Operação executada:', result);
+                console.log('Operation performed:', result);
                 
-                alert(`Operação de ${operation.toUpperCase()} executada com sucesso!`);
-                btn.innerHTML = '<i class="fas fa-check me-1"></i> Operação Concluída';
+                alert(`${operation.toUpperCase()} operation performed successfully!`);
+                btn.innerHTML = '<i class="fas fa-check me-1"></i> Operation Complete';
                 btn.className = 'btn btn-success';
                 
             } catch (error) {
-                console.error('Erro na operação: \n', error.message);
-                alert(`Erro ao executar a operação de ${operation.toUpperCase()}. Verifique a conexão com o servidor. \n${error.message}`);
+                console.error('Error on operation: \n', error.message);
+                alert(`Error executing ${operation.toUpperCase()} operation. Check server connection. \n${error.message}`);
                 btn.innerHTML = originalText;
                 btn.disabled = false;
                 btn.className = 'btn btn-success';
             }
         }
 
+        /**
+         * Emptys the session/JWT cookies
+        */
         function logout() {
             document.cookie = 'jwt=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
             document.cookie = 'userEmail=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
             updateAuthStatus(false);
-            checkAuthenticationStatus(); // Mostrar modal novamente
+            checkAuthenticationStatus(); // Shows modal again
         }
 
+        /**
+         * Gets the document cookies, and filter it, searching for the key defined on the arg.
+         * @param {string} name - Cookie name
+        */
         function getCookie(name) {
             const value = `; ${document.cookie}`;
             const parts = value.split(`; ${name}=`);
             if (parts.length === 2) return parts.pop().split(';').shift();
         }
 
-        function isAuth(){
+        /**
+         * Check if the user is authenticated. At first, checks if the 'jwt' cookie is set, then checks if the jwt is valid
+         * @returns {boolean}
+        */
+        async function isAuth(){
             const jwt = getCookie('jwt');
 
             if (typeof jwt === 'undefined') {
                 return false;
             } else {
+                const response = await fetch(`${authenticatorURL}/isValid`, {
+                    headers: {
+                        "Authorization": `Bearer ${jwt}` 
+                    }
+                });
+
+                if (!response.ok) {
+                    return false;
+                }
+
                 return true;
             }
         }
         
-        // Inicializar a interface
+        //Starts GUI
         updateStepNavigation();
     </script>
 </body>

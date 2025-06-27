@@ -9,14 +9,19 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// Struct responsible for handle the HTTP requests. Requires a DatabaseService.
+// Related to database objects
 type DatabaseController struct {
 	service service.DatabaseService
 }
 
+// Creates an instance of DatabaseController struct
 func NewDatabaseController(sv service.DatabaseService) DatabaseController {
 	return DatabaseController{service: sv}
 }
 
+// Handles the POST /connect endpoint.
+// Starts a connection pool for a database server instance. For each request, it checks if the user is authenticated.
 func (dc *DatabaseController) ConnectDatabase(ctx *gin.Context) {
 	authorization := ctx.Request.Header["Authorization"]
 
@@ -43,6 +48,8 @@ func (dc *DatabaseController) ConnectDatabase(ctx *gin.Context) {
 	return
 }
 
+// Handles the GET /databases endpoint.
+// Gets all databases allocated in the database server instance. For each request, it checks if the user is authenticated.
 func (dc *DatabaseController) GetDatabases(ctx *gin.Context) {
 	authorization := ctx.Request.Header["Authorization"]
 
@@ -62,6 +69,8 @@ func (dc *DatabaseController) GetDatabases(ctx *gin.Context) {
 	return
 }
 
+// Handles the POST /backup endpoint.
+// Calls the backup functions. For each request, it checks if the user is authenticated.
 func (dc *DatabaseController) BackupDatabase(ctx *gin.Context) {
 	authorization := ctx.Request.Header["Authorization"]
 
@@ -103,6 +112,8 @@ func (dc *DatabaseController) BackupDatabase(ctx *gin.Context) {
 	return
 }
 
+// Handles the POST /restore endpoint.
+// Calls the restore functions. For each request, it checks if the user is authenticated.
 func (dc *DatabaseController) RestoreDatabase(ctx *gin.Context) {
 	authorization := ctx.Request.Header["Authorization"]
 

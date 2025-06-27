@@ -16,16 +16,21 @@ import (
 	"github.com/RenanMonteiroS/MaestroSQLWeb/model"
 )
 
+// Struct responsible for manage database access, like SELECT, BACKUP and RESTORE statements. Requires a sql connection pool object [sql.DB]
+// Related to database objects
 type DatabaseRepository struct {
 	connection *sql.DB
 }
 
+// Creates an instance of DatabaseRepository struct
 func NewDatabaseRepository(connection *sql.DB) DatabaseRepository {
 	return DatabaseRepository{
 		connection: connection,
 	}
 }
 
+// Establish a connection with a database.
+// Args: connInfo -> A struct with connection params (host, port, user, password)
 func (ds *DatabaseRepository) ConnectDatabase(connInfo model.ConnInfo) (*sql.DB, error) {
 	conn, err := db.ConnDb(connInfo)
 	if err != nil {
@@ -37,6 +42,7 @@ func (ds *DatabaseRepository) ConnectDatabase(connInfo model.ConnInfo) (*sql.DB,
 	return conn, nil
 }
 
+// Checks if the connection poll is set and running
 func (ds *DatabaseRepository) CheckDbConn() error {
 	if ds.connection == nil {
 		return errors.New("Connection was not set. Try to call /connect with the connection parameters")
@@ -51,6 +57,7 @@ func (ds *DatabaseRepository) CheckDbConn() error {
 
 }
 
+// Performs a SELECT in [master] database, to list all server databases
 func (dr *DatabaseRepository) GetDatabases() ([]model.MergedDatabaseFileInfo, error) {
 	query := "SELECT d.database_id, d.name DatabaseName, " +
 		"f.name LogicalName, f.physical_name AS PhysicalName, f.type_desc TypeofFile " +
@@ -68,7 +75,7 @@ func (dr *DatabaseRepository) GetDatabases() ([]model.MergedDatabaseFileInfo, er
 
 	for rows.Next() {
 		err = rows.Scan(&dbObjAux.DatabaseId, &dbObjAux.DatabaseName, &dbObjAux.LogicalName,
-			&dbObjAux.PhysicalName, &dbObjAux.File_type)
+			&dbObjAux.PhysicalName, &dbObjAux.FileType)
 
 		if err != nil {
 			return nil, err
@@ -80,6 +87,8 @@ func (dr *DatabaseRepository) GetDatabases() ([]model.MergedDatabaseFileInfo, er
 	return dbListAux, nil
 }
 
+// Performs a BACKUP DATABASE statement, for each database selected, storing into the backup path choosed.
+// The BACKUP DATABASE statements are executed in goroutines, which makes them concurrent
 func (dr *DatabaseRepository) BackupDatabase(backupDbList []model.Database, backupPath string) ([]model.Database, []error) {
 	t0 := time.Now()
 
@@ -148,15 +157,18 @@ func (dr *DatabaseRepository) BackupDatabase(backupDbList []model.Database, back
 		errorsList = append(errorsList, err)
 	}
 
-	log.Printf("Data: %v", time.Now().Format("2006-01-02"))
-	log.Printf("Tempo total: %v", time.Since(t0))
-	log.Printf("Local: %v", backupPath)
-	log.Printf("Total de backups: %v", len(dbDoneList))
+	log.Printf("Date: %v", time.Now().Format("2006-01-02"))
+	log.Printf("Total Time: %v", time.Since(t0))
+	log.Printf("Path: %v", backupPath)
+	log.Printf("Total Backups: %v", len(dbDoneList))
 
 	return dbDoneList, errorsList
 
 }
 
+// Performs a RESTORE DATABASE statement, for all backup files inside the backup path.
+// The database name is based on the backup file name, as well as the name of the database files (.mdf, .ldf, .ndf)
+// The RESTORE DATABASE statements are executed in goroutines, which makes them concurrent
 func (dr *DatabaseRepository) RestoreDatabase(restoreDbList []model.RestoreDb, dataPath string, logPath string) ([]model.RestoreDb, []error) {
 	t0 := time.Now()
 
@@ -233,14 +245,15 @@ func (dr *DatabaseRepository) RestoreDatabase(restoreDbList []model.RestoreDb, d
 		errorsList = append(errorsList, err)
 	}
 
-	log.Printf("Data: %v", time.Now().Format("2006-01-02"))
-	log.Printf("Tempo total: %v", time.Since(t0))
-	log.Printf("Total de backups: %v", len(restoreDoneDbList))
+	log.Printf("Date: %v", time.Now().Format("2006-01-02"))
+	log.Printf("Total Time: %v", time.Since(t0))
+	log.Printf("Total Restores: %v", len(restoreDoneDbList))
 
 	return restoreDoneDbList, errorsList
 
 }
 
+// Gets the default data path and log path, set as a server property
 func (dr *DatabaseRepository) GetDefaultFilesPath() (string, string, error) {
 	var dataPath, logPath string
 
@@ -271,6 +284,11 @@ func (dr *DatabaseRepository) GetDefaultFilesPath() (string, string, error) {
 	return dataPath, logPath, nil
 }
 
+// Performs a RESTORE FILELISTONLY for each backup file. It gets all the information about the related database backup file.
+// RESTORE FILELISTONLY is necessary because if RESTORE DATABASE is run without setting the name and location of the database files,
+// it will restore the database using the previous data. Therefore, if the database was previously located in /var/opt/mssql/,
+// even if the restore is being performed on a Windows server, it will attempt to restore the files in /var/opt/mssql/. Also, RESTORE DATABASE expects the original
+// logical name of the database file. That's when RESTORE FILELISTONLY helps.
 func (dr *DatabaseRepository) GetBackupFilesData(backupFiles []string) ([]model.DatabaseFromBackupFile, error) {
 	var restoreDatabaseInfo model.BackupDataFile
 	var restoreDatabaseInfoList []model.DatabaseFromBackupFile

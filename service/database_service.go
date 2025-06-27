@@ -17,14 +17,19 @@ import (
 	"github.com/RenanMonteiroS/MaestroSQLWeb/repository"
 )
 
+// Struct responsible for manage authentication logic, business rules, data transformation and logs. Requires a DatabaseRepository.
+// Related to database objects
 type DatabaseService struct {
 	repository repository.DatabaseRepository
 }
 
+// Creates an instance of DatabaseService struct
 func NewDatabaseService(rp repository.DatabaseRepository) DatabaseService {
 	return DatabaseService{repository: rp}
 }
 
+// Makes a HTTP request to the authenticator's /isValid endpoint.
+// If the JWT into the Authorization header is not valid, it returns an error. Else, it returns nil
 func (ds *DatabaseService) IsAuth(authorization *[]string) error {
 	type ResponseBody struct {
 		Msg    string `json:"msg"`
@@ -66,6 +71,8 @@ func (ds *DatabaseService) IsAuth(authorization *[]string) error {
 
 }
 
+// Establish a connection with a database.
+// Args: connInfo -> A struct with connection params (host, port, user, password)
 func (ds *DatabaseService) ConnectDatabase(connInfo model.ConnInfo) (*sql.DB, error) {
 	conn, err := ds.repository.ConnectDatabase(connInfo)
 	if err != nil {
@@ -84,6 +91,7 @@ func (ds *DatabaseService) ConnectDatabase(connInfo model.ConnInfo) (*sql.DB, er
 	return conn, nil
 }
 
+// Checks if the connection poll is set and running
 func (ds *DatabaseService) CheckDbConn() error {
 	err := ds.repository.CheckDbConn()
 	if err != nil {
@@ -101,6 +109,8 @@ func (ds *DatabaseService) CheckDbConn() error {
 	return nil
 }
 
+// Gets all server databases
+// Before it calls the repository.GetDatabases() function, it checks if the connection is set.
 func (ds *DatabaseService) GetDatabases() ([]model.Database, error) {
 	err := ds.CheckDbConn()
 	if err != nil {
@@ -135,14 +145,14 @@ func (ds *DatabaseService) GetDatabases() ([]model.Database, error) {
 				found = true
 				dbFile.LogicalName = dbData.LogicalName
 				dbFile.PhysicalName = dbData.PhysicalName
-				dbFile.FileType = dbData.File_type
+				dbFile.FileType = dbData.FileType
 				dbList[key].Files = append(dbList[key].Files, dbFile)
 			}
 		}
 		if found != true {
 			dbFile.LogicalName = dbData.LogicalName
 			dbFile.PhysicalName = dbData.PhysicalName
-			dbFile.FileType = dbData.File_type
+			dbFile.FileType = dbData.FileType
 			dbObj.Files = append(dbObj.Files, dbFile)
 			dbList = append(dbList, dbObj)
 		}
@@ -152,6 +162,8 @@ func (ds *DatabaseService) GetDatabases() ([]model.Database, error) {
 	return dbList, nil
 }
 
+// Starts the backup, for each database selected, storing into the backup path choosed.
+// Before it calls the repository.BackupDatabase() function, it checks if the connection is set.
 func (ds *DatabaseService) BackupDatabase(backupDbList []model.Database, backupPath string) ([]model.Database, []error) {
 	err := ds.CheckDbConn()
 	if err != nil {
@@ -174,6 +186,8 @@ func (ds *DatabaseService) BackupDatabase(backupDbList []model.Database, backupP
 	return backupDbDoneList, nil
 }
 
+// Starts the backup, for each database selected, storing into the backup path choosed.
+// Before it calls the repository.RestoreDatabase() function, it checks if the connection is set, gets the backup file data, mounts the database object and gets the default data files path
 func (ds *DatabaseService) RestoreDatabase(backupFilesPath string) ([]model.RestoreDb, []error, error) {
 	err := ds.CheckDbConn()
 	if err != nil {

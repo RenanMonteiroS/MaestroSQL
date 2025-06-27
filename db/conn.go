@@ -9,6 +9,7 @@ import (
 	_ "github.com/microsoft/go-mssqldb"
 )
 
+// Creates a connection pool using the provided connection information. It don't uses encryption and connects by default to the [master] database
 func ConnDb(connInfo model.ConnInfo) (*sql.DB, error) {
 	queryParams := url.Values{}
 	queryParams.Add("database", "master")
@@ -24,10 +25,11 @@ func ConnDb(connInfo model.ConnInfo) (*sql.DB, error) {
 
 	db, err := sql.Open("sqlserver", u.String())
 	if err != nil {
-		fmt.Println("Erro", err)
+		fmt.Println("Error ", err)
 		return nil, err
 	}
 
+	// Checks the database connection
 	err = db.Ping()
 	if err != nil {
 		return nil, err
