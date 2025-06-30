@@ -457,8 +457,8 @@
         //These variables will be replaced by Go
         const authenticatorUsage = {{ .authenticatorUsage }};
         const authenticatorURL = "{{.authenticatorURL}}";
+        const appCSRFTokenUsage = {{ .appCSRFTokenUsage }}
         const appAddr = {{ .appCertificateUsage }} ? "https://{{.appHost}}" + ":" + "{{.appPort}}" : "http://{{.appHost}}" + ":" + "{{.appPort}}";
-        const csrfToken = "{{.csrfToken}}";
 
         //When the document is loaded...
         document.addEventListener('DOMContentLoaded', async function() {   
@@ -1016,7 +1016,6 @@
             
             const headers = {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': csrfToken
             };
 
             if (authenticatorUsage) {
@@ -1024,6 +1023,10 @@
                 if (jwt) {
                     headers['Authorization'] = `Bearer ${jwt}`;
                 }
+            }
+
+            if(appCSRFTokenUsage) {
+                headers['X-CSRF-TOKEN'] = csrfToken;
             }
             return headers;
         }

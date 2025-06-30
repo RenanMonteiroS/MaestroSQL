@@ -47,24 +47,26 @@ func main() {
 	// Create an instance of the Gin Server Engine to be runned
 	server := gin.Default()
 
-	store := cookie.NewStore([]byte(config.AppCSRFCookieSecret))
-	store.Options(sessions.Options{
-		Path:     "/",
-		MaxAge:   86400,
-		HttpOnly: true,
-		Secure:   config.AppCertificateUsage,
-		SameSite: http.SameSiteLaxMode,
-	})
+	if config.AppCSRFTokenUsage {
+		store := cookie.NewStore([]byte(config.AppCSRFCookieSecret))
+		store.Options(sessions.Options{
+			Path:     "/",
+			MaxAge:   86400,
+			HttpOnly: true,
+			Secure:   config.AppCertificateUsage,
+			SameSite: http.SameSiteLaxMode,
+		})
 
-	server.Use(sessions.Sessions("maestro-sessions", store))
-	server.Use(csrf.Middleware(csrf.Options{
-		Secret: config.AppCSRFTokenSecret,
-		ErrorFunc: func(c *gin.Context) {
-			slog.Error("CSRF token mismatch")
-			c.JSON(400, gin.H{"msg": "CSRF token mismatch"})
-			c.Abort()
-		},
-	}))
+		server.Use(sessions.Sessions("maestro-sessions", store))
+		server.Use(csrf.Middleware(csrf.Options{
+			Secret: config.AppCSRFTokenSecret,
+			ErrorFunc: func(c *gin.Context) {
+				slog.Error("CSRF token mismatch")
+				c.JSON(400, gin.H{"msg": "CSRF token mismatch"})
+				c.Abort()
+			},
+		}))
+	}
 
 	// Creates the templates that will be served. It uses template.ParseFS to read the system's fs instead of the OS's fs. The embed templates will be read
 	tmpl := template.Must(template.ParseFS(TemplateFS, "templates/*"))
@@ -100,14 +102,28 @@ func main() {
 
 	// Initialize the "/" HTTP route, serving the HTML template file, providing some variables to the template
 	server.GET("/", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "backupForm.html", gin.H{
-			"appHost":             serverIP,
-			"appPort":             config.AppPort,
-			"appCertificateUsage": config.AppCertificateUsage,
-			"authenticatorUsage":  config.AuthenticatorUsage,
-			"authenticatorURL":    config.AuthenticatorURL,
-			"csrfToken":           csrf.GetToken(c),
-		})
+		var varToServe gin.H
+		if config.AppCSRFTokenUsage {
+			varToServe = gin.H{
+				"appHost":             serverIP,
+				"appPort":             config.AppPort,
+				"appCertificateUsage": config.AppCertificateUsage,
+				"appCSRFTokenUsage":   config.AppCSRFTokenUsage,
+				"authenticatorUsage":  config.AuthenticatorUsage,
+				"authenticatorURL":    config.AuthenticatorURL,
+				"csrfToken":           csrf.GetToken(c),
+			}
+		} else {
+			varToServe = gin.H{
+				"appHost":             serverIP,
+				"appPort":             config.AppPort,
+				"appCertificateUsage": config.AppCertificateUsage,
+				"appCSRFTokenUsage":   config.AppCSRFTokenUsage,
+				"authenticatorUsage":  config.AuthenticatorUsage,
+				"authenticatorURL":    config.AuthenticatorURL,
+			}
+		}
+		c.HTML(http.StatusOK, "backupForm.html", varToServe)
 	})
 
 	fmt.Printf("MaestroSQL started. Your application is running at: http://%v/", serverAddr)
