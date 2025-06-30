@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/url"
 
 	"github.com/RenanMonteiroS/MaestroSQLWeb/model"
@@ -30,17 +31,19 @@ func ConnDb(connInfo model.ConnInfo) (*sql.DB, error) {
 		return nil, err
 	}
 
+	slog.Info("Trying to connect to the database: ", "ConnInfo", connInfo)
+
 	if connInfo.MaxConnections != 0 {
 		db.SetMaxOpenConns(connInfo.MaxConnections)
 	}
+
+	slog.Info("Database connected sucessfuly")
 
 	// Checks the database connection
 	err = db.Ping()
 	if err != nil {
 		return nil, err
 	}
-
-	log.Println("Connected to database")
 
 	return db, nil
 }

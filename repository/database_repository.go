@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -103,12 +104,17 @@ func (dr *DatabaseRepository) BackupDatabase(backupDbList []model.Database, back
 	var dbDoneList []model.Database
 	var errorsList []error
 
-	f, err := os.OpenFile("backup.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	backupLogFile, err := os.OpenFile("backup.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
+		slog.Error("Cannot open backup log file: ", "Error: ", err)
 		return nil, []error{err}
 	}
-	defer f.Close()
-	log.SetOutput(f)
+	defer backupLogFile.Close()
+
+	backupLogger := slog.New(slog.NewJSONHandler(backupLogFile, &slog.HandlerOptions{
+		AddSource: true,
+		Level:     slog.LevelInfo,
+	}))
 
 	for _, db := range backupDbList {
 		wg.Add(1)
@@ -123,19 +129,19 @@ func (dr *DatabaseRepository) BackupDatabase(backupDbList []model.Database, back
 
 			stmt, err := dr.connection.Prepare(query)
 			if err != nil {
-				log.Printf("Backup related to [%v] database with errors: %v", db.Name, err)
+				backupLogger.Error("Error preparing BACKUP query: ", "Query: ", query, "Error: ", err)
 				chError <- err
 				return
 			}
 
 			_, err = stmt.ExecContext(ctx, sql.Named("Path", path))
 			if err != nil {
-				log.Printf("Backup related to [%v] database with errors: %v", db.Name, err)
+				backupLogger.Error("Error executing BACKUP query: ", "Query: ", query, "Error: ", err)
 				chError <- err
 				return
 			}
 
-			log.Printf("Backup related to [%v] database completed", db.Name)
+			backupLogger.Info(fmt.Sprintf("Backup related to [%v] database completed", db.Name), "Database:", db.Name)
 			ch <- db
 
 			return
@@ -157,10 +163,9 @@ func (dr *DatabaseRepository) BackupDatabase(backupDbList []model.Database, back
 		errorsList = append(errorsList, err)
 	}
 
-	log.Printf("Date: %v", time.Now().Format("2006-01-02"))
-	log.Printf("Total Time: %v", time.Since(t0))
-	log.Printf("Path: %v", backupPath)
-	log.Printf("Total Backups: %v", len(dbDoneList))
+	backupLogger.Info(fmt.Sprintf("Total Time: %v", time.Since(t0)))
+	backupLogger.Info(fmt.Sprintf("Path: %v", backupPath))
+	backupLogger.Info(fmt.Sprintf("Total Backups: %v", len(dbDoneList)))
 
 	return dbDoneList, errorsList
 
@@ -179,12 +184,17 @@ func (dr *DatabaseRepository) RestoreDatabase(restoreDbList []model.RestoreDb, d
 	ch := make(chan model.RestoreDb, len(restoreDbList))
 	chError := make(chan error, len(restoreDbList))
 
-	f, err := os.OpenFile("restore.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	restoreLogFile, err := os.OpenFile("restore.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
+		slog.Error("Cannot open restore log file: ", "Error: ", err)
 		return nil, []error{err}
 	}
-	defer f.Close()
-	log.SetOutput(f)
+	defer restoreLogFile.Close()
+
+	restoreLogger := slog.New(slog.NewJSONHandler(restoreLogFile, &slog.HandlerOptions{
+		AddSource: true,
+		Level:     slog.LevelInfo,
+	}))
 
 	for _, db := range restoreDbList {
 		wg.Add(1)
@@ -245,9 +255,8 @@ func (dr *DatabaseRepository) RestoreDatabase(restoreDbList []model.RestoreDb, d
 		errorsList = append(errorsList, err)
 	}
 
-	log.Printf("Date: %v", time.Now().Format("2006-01-02"))
-	log.Printf("Total Time: %v", time.Since(t0))
-	log.Printf("Total Restores: %v", len(restoreDoneDbList))
+	restoreLogger.Info(fmt.Sprintf("Total Time: %v", time.Since(t0)))
+	restoreLogger.Info(fmt.Sprintf("Total Restores: %v", len(restoreDoneDbList)))
 
 	return restoreDoneDbList, errorsList
 

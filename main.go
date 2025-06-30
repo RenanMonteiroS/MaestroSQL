@@ -2,8 +2,11 @@ package main
 
 import (
 	"embed"
+	"fmt"
 	"html/template"
+	"log/slog"
 	"net/http"
+	"os"
 	"os/exec"
 	"runtime"
 
@@ -20,6 +23,18 @@ import (
 var TemplateFS embed.FS
 
 func main() {
+	logFile, err := os.OpenFile("app.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	if err != nil {
+		os.Exit(1)
+	}
+	defer logFile.Close()
+
+	logger := slog.New(slog.NewJSONHandler(logFile, &slog.HandlerOptions{
+		AddSource: true,
+		Level:     slog.LevelInfo,
+	}))
+	slog.SetDefault(logger)
+
 	// Create an instance of the Gin Server Engine to be runned
 	server := gin.Default()
 
@@ -49,6 +64,9 @@ func main() {
 
 	// Opens the URL in the browser and starts the server
 	go openFile("http://localhost:8000/")
+
+	fmt.Println("MaestroSQL started. Your application is running at: http://localhost:8000/")
+	logger.Info("MaestroSQL started. Your application is running at: http://localhost:8000/")
 	server.Run(":8000")
 }
 
