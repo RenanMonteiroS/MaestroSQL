@@ -29,6 +29,8 @@ func ConnDb(connInfo model.ConnInfo) (*sql.DB, error) {
 		return nil, err
 	}
 
+	//db.SetMaxOpenConns(3)
+
 	// Checks the database connection
 	err = db.Ping()
 	if err != nil {
