@@ -179,6 +179,13 @@
         .loading-spinner {
             display: none;
         }
+        .info-icon {
+            font-size: 0.9rem;
+            color: #6c757d;
+            margin-left: 5px;
+            cursor: help;
+            vertical-align: middle;
+        }
     </style>
 </head>
 <body>
@@ -347,6 +354,11 @@
                                 </div>
                                 <div class="col-md-6 mb-3">
                                     <label for="maxConnections" class="form-label">Max connections</label>
+                                    <i class="fas fa-info-circle info-icon" 
+                                       data-bs-toggle="tooltip" 
+                                       data-bs-placement="right" 
+                                       title="Set the maximum number of concurrent connections to the database. Leave 0 to use the driver default.">
+                                    </i>
                                     <input type="number" class="form-control" id="maxConnections" placeholder="0" >
                                 </div>
                                 <div class="col-md-6 mb-3">
@@ -406,7 +418,12 @@
                         <div class="mt-3">
                             <div class="col-md-12 mb-3">
                                 <label for="path" class="form-label">Backups path</label>
-                                <input type="text" class="form-control" id="path" placeholder="C:/Backups" required>
+                                <i class="fas fa-info-circle info-icon" 
+                                       data-bs-toggle="tooltip" 
+                                       data-bs-placement="right" 
+                                       title="By default, if this field is empty, the default SQL Server backup path is used.">
+                                </i>
+                                <input type="text" class="form-control" id="path" placeholder="C:/Backups">
                            </div>                           
                         </div>
                     </div>
@@ -867,7 +884,7 @@
 
                 <div class="summary-item">
                     <div class="summary-label">
-                        <i class="fas fa-folder-open me-2"></i>
+                        <i class="fas fa-folder-open me-2"></i>                        
                         Backup path:
                     </div>
                     <div class="summary-value">
