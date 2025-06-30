@@ -217,9 +217,9 @@ go run main.go
 ```
 
 The application will:
-1. Start the web server on port 8000
-2. Automatically open your default browser
-3. Navigate to `http://localhost:8000`
+1. Start the web server on port defined in `config/config.go`
+2. Automatically open your default browser (if config.AppOpenOnceRunned is true)
+3. Navigate to `http://localhost:8000`, or another value defined in `config/config.go` (config.AppHost and config.AppPort)
 
 ### Development Commands
 

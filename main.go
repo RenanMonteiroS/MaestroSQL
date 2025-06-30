@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"html/template"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 
 	"github.com/RenanMonteiroS/MaestroSQLWeb/config"
 	"github.com/RenanMonteiroS/MaestroSQLWeb/controller"
@@ -36,7 +38,10 @@ func main() {
 	slog.SetDefault(logger)
 
 	// Create an instance of the Gin Server Engine to be runned
+	serverIP := config.AppHost
 	serverAddr := fmt.Sprintf(config.AppHost + ":" + fmt.Sprint(config.AppPort))
+	var serverProtocol string
+
 	server := gin.Default()
 
 	// Creates the templates that will be served. It uses template.ParseFS to read the system's fs instead of the OS's fs. The embed templates will be read
@@ -55,16 +60,6 @@ func main() {
 	server.POST("/backup", DatabaseController.BackupDatabase)
 	server.POST("/restore", DatabaseController.RestoreDatabase)
 
-	// Initialize the "/" HTTP route, serving the HTML template file, providing some variables to the template
-	server.GET("/", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "backupForm.html", gin.H{
-			"useAuth":          config.AuthenticatorUsage,
-			"authenticatorURL": config.AuthenticatorURL,
-		})
-	})
-
-	var serverProtocol string
-
 	if config.AppCertificateUsage {
 		serverProtocol = "https"
 	} else {
@@ -73,10 +68,24 @@ func main() {
 
 	// Opens the URL in the browser and starts the server
 	if config.AppHost == "0.0.0.0" {
-		go openFile(fmt.Sprintf("%v://%v:%v/", serverProtocol, "127.0.0.1", config.AppPort))
+		localIP := getOutboundIP()
+		serverIP = localIP
+		serverAddr = fmt.Sprintf(config.AppHost + ":" + fmt.Sprint(config.AppPort))
+		go openFile(fmt.Sprintf("%v://%v:%v/", serverProtocol, localIP, config.AppPort))
 	} else {
 		go openFile(fmt.Sprintf("%v://%v/", serverProtocol, serverAddr))
 	}
+
+	// Initialize the "/" HTTP route, serving the HTML template file, providing some variables to the template
+	server.GET("/", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "backupForm.html", gin.H{
+			"appHost":             serverIP,
+			"appPort":             config.AppPort,
+			"appCertificateUsage": config.AppCertificateUsage,
+			"authenticatorUsage":  config.AuthenticatorUsage,
+			"authenticatorURL":    config.AuthenticatorURL,
+		})
+	})
 
 	fmt.Printf("MaestroSQL started. Your application is running at: http://%v/", serverAddr)
 	logger.Info(fmt.Sprintf("MaestroSQL started. Your application is running at: http://%v/", serverAddr))
@@ -105,4 +114,54 @@ func openFile(url string) error {
 	}
 	args = append(args, url)
 	return exec.Command(cmd, args...).Start()
+}
+
+// Checks if there's any IP related do ethernet.
+func getOutboundIP() string {
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		slog.Warn("Failed to get network interfaces", "Error", err)
+		return "127.0.0.1"
+	}
+
+	var potentialIPs []string
+
+	for _, iface := range interfaces {
+		// Ignores disabled and loopback interfaces
+		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+
+		// Get IP addresses
+		addrs, err := iface.Addrs()
+		if err != nil {
+			slog.Warn("Failed to get network interfaces", "Interface", iface.Name, "Error", err)
+			continue
+		}
+
+		for _, addr := range addrs {
+			var ip net.IP
+			if ipnet, ok := addr.(*net.IPNet); ok {
+				ip = ipnet.IP
+			}
+
+			// Checks if the IP is valid, or not LoopBack
+			if ip != nil && !ip.IsLoopback() && ip.To4() != nil {
+				// Checks if the interface is related to the ethernet to priorize it
+				if strings.Contains(strings.ToLower(iface.Name), "ethernet") {
+					return ip.String() // If some Ethernet IP is found, it is returned
+				}
+				// Collect other potential ethernet IPS
+				potentialIPs = append(potentialIPs, ip.String())
+			}
+		}
+	}
+
+	// If no Ethernet IP is found, it returns other potential IP
+	if len(potentialIPs) > 0 {
+		return potentialIPs[0]
+	}
+
+	// If none IP is found, it returns the loopback
+	return "127.0.0.1"
 }

@@ -271,7 +271,7 @@
                     Summary
                 </div>
 
-                {{if .useAuth}}    
+                {{if .authenticatorUsage}}    
                 <!-- User card -->
                 <div class="user-menu dropdown ms-3">
                     <div class="user-icon" data-bs-toggle="dropdown" aria-expanded="false">
@@ -318,14 +318,6 @@
                         <form id="connection-form">
                             <div class="row">
                                 <div class="col-md-6 mb-3">
-                                    <label for="dbType" class="form-label">Type</label>
-                                    <input type="text" class="form-control" id="dbType" placeholder="SQL Server" disabled>
-                                </div>
-                                <div class="col-md-6 mb-3">
-                                    <label for="maxConnections" class="form-label">Max connections</label>
-                                    <input type="number" class="form-control" id="maxConnections" placeholder="0" >
-                                </div>
-                                <div class="col-md-6 mb-3">
                                     <label for="host" class="form-label">Host</label>
                                     <input type="text" class="form-control" id="host" placeholder="localhost" required>
                                 </div>
@@ -342,6 +334,19 @@
                                 <div class="col-md-6 mb-3">
                                     <label for="password" class="form-label">Password</label>
                                     <input type="password" class="form-control" id="password" placeholder="••••••••" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="encryption" class="form-label">Encryption</label>
+                                    <select class="form-control" id="encryption" >
+                                        <option value="mandatory">Mandatory</option>
+                                        <option value="option">Optional</option>
+                                        <option value="disable">Disable</option>
+                                        <option value="strict">Strict</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="maxConnections" class="form-label">Max connections</label>
+                                    <input type="number" class="form-control" id="maxConnections" placeholder="0" >
                                 </div>
                             </div>
                         </form>
@@ -443,12 +448,13 @@
         let authModal;
 
         //These variables will be replaced by Go
-        const useAuth = {{ .useAuth }};
+        const authenticatorUsage = {{ .authenticatorUsage }};
         const authenticatorURL = "{{.authenticatorURL}}";
+        const appAddr = {{ .appCertificateUsage }} ? "https://{{.appHost}}" + ":" + "{{.appPort}}" : "http://{{.appHost}}" + ":" + "{{.appPort}}";
 
         //When the document is loaded...
         document.addEventListener('DOMContentLoaded', async function() {   
-            if (useAuth) {
+            if (authenticatorUsage) {
                 const isAuthResult = await isAuth();
                 authModal = new bootstrap.Modal(document.getElementById('authModal'), {
                             backdrop: 'static',
@@ -617,8 +623,8 @@
                         maxConnections: parseInt(document.getElementById('maxConnections').value) || 0
                     };
 
-                    const headers = useAuth ? {'Authorization': "Bearer " + getCookie('jwt'),'Content-Type': 'application/json'} : {'Content-Type': 'application/json'};
-                    const response = await fetch('http://localhost:8000/connect', {
+                    const headers = authenticatorUsage ? {'Authorization': "Bearer " + getCookie('jwt'),'Content-Type': 'application/json'} : {'Content-Type': 'application/json'};
+                    const response = await fetch(`${appAddr}/connect`, {
                         method: 'POST',
                         headers: headers,
                         body: JSON.stringify(connectionData)
@@ -723,7 +729,7 @@
         async function loadDatabases() {
             const databaseContainer = document.querySelector('#step-3 .row');
             const databaseSelectButtons = document.querySelector("#databaseSelectButtons");
-            const headers = useAuth ? {'Authorization': "Bearer " + getCookie('jwt'),'Content-Type': 'application/json'} : {'Content-Type': 'application/json'};
+            const headers = authenticatorUsage ? {'Authorization': "Bearer " + getCookie('jwt'),'Content-Type': 'application/json'} : {'Content-Type': 'application/json'};
 
             try {
                 // Shows loading
@@ -737,7 +743,7 @@
                 `;
 
                 //Fetchs the backend /databases endpoint
-                const response = await fetch('http://localhost:8000/databases', {
+                const response = await fetch(`${appAddr}/databases`, {
                     method: 'GET',
                     headers: headers,
                 });
@@ -910,15 +916,15 @@
                 };
 
                 let response;
-                const headers = useAuth ? {'Authorization': "Bearer " + getCookie('jwt'),'Content-Type': 'application/json'} : {'Content-Type': 'application/json'};
+                const headers = authenticatorUsage ? {'Authorization': "Bearer " + getCookie('jwt'),'Content-Type': 'application/json'} : {'Content-Type': 'application/json'};
                 if (operation === 'backup') {
-                    response = await fetch('http://localhost:8000/backup', {
+                    response = await fetch(`${appAddr}/backup`, {
                         method: 'POST',
                         headers: headers,
                         body: JSON.stringify(requestData)
                     });
                     } else if (operation === 'restore') {
-                    response = await fetch('http://localhost:8000/restore', {
+                    response = await fetch(`${appAddr}/restore`, {
                         method: 'POST',
                         headers: headers,
                         body: JSON.stringify({backupFilesPath: document.getElementById('path').value})
