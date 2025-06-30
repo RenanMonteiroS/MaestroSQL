@@ -9,4 +9,6 @@ const (
 	AppCertificateUsage       = false                      //If the HTTPs protocol will be used or not via certificate/key
 	AppCertificateLocation    = ""                         //The location of the .crt/.pem file
 	AppCertificateKeyLocation = ""                         //The location of the .key/.pem file
+	AppCSRFCookieSecret       = "my-supersecret-cookie"
+	AppCSRFTokenSecret        = "my-supersecret-token"
 )

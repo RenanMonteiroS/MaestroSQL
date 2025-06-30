@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -221,18 +220,18 @@ func (dr *DatabaseRepository) RestoreDatabase(restoreDbList []model.RestoreDb, d
 
 			stmt, err := dr.connection.Prepare(query)
 			if err != nil {
-				log.Printf("Restore related to [%v] database with errors: %v", db.Database.Name, err)
+				restoreLogger.Error("Error preparing RESTORE query: ", "Query: ", query, "Error: ", err)
 				chError <- err
 				return
 			}
 			_, err = stmt.ExecContext(ctx, sql.Named("Path", db.BackupPath))
 			if err != nil {
-				log.Printf("Restore related to [%v] database with errors: %v", db.Database.Name, err)
+				restoreLogger.Error("Error executing RESTORE query: ", "Query: ", query, "Error: ", err)
 				chError <- err
 				return
 			}
 
-			log.Printf("Restore related to [%v] database completed", db.Database.Name)
+			restoreLogger.Info(fmt.Sprintf("Restore related to [%v] database completed", db.Database.Name), "Database:", db.Database.Name)
 			ch <- db
 
 			return

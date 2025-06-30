@@ -16,7 +16,10 @@ import (
 	"github.com/RenanMonteiroS/MaestroSQLWeb/controller"
 	"github.com/RenanMonteiroS/MaestroSQLWeb/repository"
 	"github.com/RenanMonteiroS/MaestroSQLWeb/service"
+	"github.com/gin-contrib/sessions"
+	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
+	csrf "github.com/utrack/gin-csrf"
 )
 
 // Embeds HTML templates. Allows files within the templates folder to be referenced without having them on the computer when the application is compiled.
@@ -37,12 +40,31 @@ func main() {
 	}))
 	slog.SetDefault(logger)
 
-	// Create an instance of the Gin Server Engine to be runned
 	serverIP := config.AppHost
 	serverAddr := fmt.Sprintf(config.AppHost + ":" + fmt.Sprint(config.AppPort))
 	var serverProtocol string
 
+	// Create an instance of the Gin Server Engine to be runned
 	server := gin.Default()
+
+	store := cookie.NewStore([]byte(config.AppCSRFCookieSecret))
+	store.Options(sessions.Options{
+		Path:     "/",
+		MaxAge:   86400,
+		HttpOnly: true,
+		Secure:   config.AppCertificateUsage,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	server.Use(sessions.Sessions("maestro-sessions", store))
+	server.Use(csrf.Middleware(csrf.Options{
+		Secret: config.AppCSRFTokenSecret,
+		ErrorFunc: func(c *gin.Context) {
+			slog.Error("CSRF token mismatch")
+			c.JSON(400, gin.H{"msg": "CSRF token mismatch"})
+			c.Abort()
+		},
+	}))
 
 	// Creates the templates that will be served. It uses template.ParseFS to read the system's fs instead of the OS's fs. The embed templates will be read
 	tmpl := template.Must(template.ParseFS(TemplateFS, "templates/*"))
@@ -84,6 +106,7 @@ func main() {
 			"appCertificateUsage": config.AppCertificateUsage,
 			"authenticatorUsage":  config.AuthenticatorUsage,
 			"authenticatorURL":    config.AuthenticatorURL,
+			"csrfToken":           csrf.GetToken(c),
 		})
 	})
 
