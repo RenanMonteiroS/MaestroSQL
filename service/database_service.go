@@ -78,12 +78,12 @@ func (ds *DatabaseService) ConnectDatabase(connInfo model.ConnInfo) (*sql.DB, er
 	if err != nil {
 		f, errFile := os.OpenFile("fatal.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 		if errFile != nil {
-			fmt.Println("Erro: ", errFile)
+			fmt.Println("Error: ", errFile)
 			return nil, errFile
 		}
 		defer f.Close()
 		log.SetOutput(f)
-		log.Printf("Erro: %v: \n", err)
+		log.Printf("Error: %v: \n", err)
 
 		return nil, err
 	}
@@ -97,12 +97,12 @@ func (ds *DatabaseService) CheckDbConn() error {
 	if err != nil {
 		f, errFile := os.OpenFile("fatal.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 		if errFile != nil {
-			fmt.Println("Erro: ", errFile)
+			fmt.Println("Error: ", errFile)
 			return errFile
 		}
 		defer f.Close()
 		log.SetOutput(f)
-		log.Printf("Erro: %v: \n", err)
+		log.Printf("Error: %v: \n", err)
 		return err
 	}
 
@@ -121,12 +121,12 @@ func (ds *DatabaseService) GetDatabases() ([]model.Database, error) {
 	if err != nil {
 		f, errFile := os.OpenFile("fatal.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 		if errFile != nil {
-			fmt.Println("Erro: ", errFile)
+			fmt.Println("Error: ", errFile)
 			return nil, errFile
 		}
 		defer f.Close()
 		log.SetOutput(f)
-		log.Printf("Erro: %v: \n", err)
+		log.Printf("Error: %v: \n", err)
 		return nil, err
 	}
 

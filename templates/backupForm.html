@@ -318,6 +318,14 @@
                         <form id="connection-form">
                             <div class="row">
                                 <div class="col-md-6 mb-3">
+                                    <label for="dbType" class="form-label">Type</label>
+                                    <input type="text" class="form-control" id="dbType" placeholder="SQL Server" disabled>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="maxConnections" class="form-label">Max connections</label>
+                                    <input type="number" class="form-control" id="maxConnections" placeholder="0" >
+                                </div>
+                                <div class="col-md-6 mb-3">
                                     <label for="host" class="form-label">Host</label>
                                     <input type="text" class="form-control" id="host" placeholder="localhost" required>
                                 </div>
@@ -605,7 +613,8 @@
                         host: document.getElementById('host').value,
                         port: document.getElementById('port').value,
                         user: document.getElementById('user').value,
-                        password: document.getElementById('password').value
+                        password: document.getElementById('password').value,
+                        maxConnections: parseInt(document.getElementById('maxConnections').value) || 0
                     };
 
                     const headers = useAuth ? {'Authorization': "Bearer " + getCookie('jwt'),'Content-Type': 'application/json'} : {'Content-Type': 'application/json'};

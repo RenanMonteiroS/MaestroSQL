@@ -63,7 +63,7 @@ func (dr *DatabaseRepository) GetDatabases() ([]model.MergedDatabaseFileInfo, er
 		"f.name LogicalName, f.physical_name AS PhysicalName, f.type_desc TypeofFile " +
 		"FROM sys.master_files f " +
 		"INNER JOIN sys.databases " +
-		"d ON d.database_id = f.database_id;"
+		"d ON d.database_id = f.database_id ORDER BY d.name;"
 
 	rows, err := dr.connection.Query(query)
 	if err != nil {

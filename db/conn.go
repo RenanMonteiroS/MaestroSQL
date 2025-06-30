@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"net/url"
 
 	"github.com/RenanMonteiroS/MaestroSQLWeb/model"
@@ -25,11 +26,13 @@ func ConnDb(connInfo model.ConnInfo) (*sql.DB, error) {
 
 	db, err := sql.Open("sqlserver", u.String())
 	if err != nil {
-		fmt.Println("Error ", err)
+		log.Println("Error: ", err)
 		return nil, err
 	}
 
-	//db.SetMaxOpenConns(3)
+	if connInfo.MaxConnections != 0 {
+		db.SetMaxOpenConns(connInfo.MaxConnections)
+	}
 
 	// Checks the database connection
 	err = db.Ping()
@@ -37,7 +40,7 @@ func ConnDb(connInfo model.ConnInfo) (*sql.DB, error) {
 		return nil, err
 	}
 
-	fmt.Println("Connected to database")
+	log.Println("Connected to database")
 
 	return db, nil
 }
