@@ -6,6 +6,7 @@ import (
 	"log"
 	"log/slog"
 	"net/url"
+	"strconv"
 
 	"github.com/RenanMonteiroS/MaestroSQLWeb/model"
 	_ "github.com/microsoft/go-mssqldb"
@@ -14,9 +15,20 @@ import (
 // Creates a connection pool using the provided connection information. It don't uses encryption and connects by default to the [master] database
 func ConnDb(connInfo model.ConnInfo) (*sql.DB, error) {
 	queryParams := url.Values{}
-	queryParams.Add("database", "master")
-	queryParams.Add("encrypt", "disable")
 
+	if connInfo.Encryption == "" {
+		queryParams.Add("encrypt", "mandatory")
+	} else {
+		queryParams.Add("encrypt", connInfo.Encryption)
+	}
+
+	if connInfo.TrustServerCertificate == nil {
+		queryParams.Add("trustServerCertificate", "false")
+	} else {
+		queryParams.Add("trustServerCertificate", strconv.FormatBool(*connInfo.TrustServerCertificate))
+	}
+
+	queryParams.Add("database", "master")
 	u := &url.URL{
 		Scheme: "sqlserver",
 		User:   url.UserPassword(connInfo.User, connInfo.Password),

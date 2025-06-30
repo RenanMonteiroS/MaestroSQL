@@ -339,7 +339,7 @@
                                     <label for="encryption" class="form-label">Encryption</label>
                                     <select class="form-control" id="encryption" >
                                         <option value="mandatory">Mandatory</option>
-                                        <option value="option">Optional</option>
+                                        <option value="optional">Optional</option>
                                         <option value="disable">Disable</option>
                                         <option value="strict">Strict</option>
                                     </select>
@@ -347,6 +347,12 @@
                                 <div class="col-md-6 mb-3">
                                     <label for="maxConnections" class="form-label">Max connections</label>
                                     <input type="number" class="form-control" id="maxConnections" placeholder="0" >
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <input class="form-check-input" type="checkbox" id="trustServerCertificate" value="trustServerCertificate">
+                                    <label class="form-check-label" for="trustServerCertificate">
+                                        Trust server certificate
+                                    </label>
                                 </div>
                             </div>
                         </form>
@@ -620,7 +626,9 @@
                         port: document.getElementById('port').value,
                         user: document.getElementById('user').value,
                         password: document.getElementById('password').value,
-                        maxConnections: parseInt(document.getElementById('maxConnections').value) || 0
+                        encryption: document.getElementById('encryption').value,
+                        maxConnections: parseInt(document.getElementById('maxConnections').value) || 0,
+                        trustServerCertificate: document.getElementById('trustServerCertificate').checked ? true : false
                     };
 
                     const headers = authenticatorUsage ? {'Authorization': "Bearer " + getCookie('jwt'),'Content-Type': 'application/json'} : {'Content-Type': 'application/json'};

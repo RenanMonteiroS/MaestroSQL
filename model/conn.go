@@ -4,12 +4,13 @@ import "log/slog"
 
 // ConnInfo is a set of Host, Port, User, Password and MaxConnPool. Its populated by JSON, via HTTP request. Expects a host, port, user and password in the request body.
 type ConnInfo struct {
-	Host           string `json:"host" binding:"required"`
-	Port           string `json:"port" binding:"required"`
-	User           string `json:"user" binding:"required"`
-	Password       string `json:"password" binding:"required"`
-	Encryption     string `json:"encryption"`
-	MaxConnections int    `json:"maxConnections"`
+	Host                   string `json:"host" binding:"required"`
+	Port                   string `json:"port" binding:"required"`
+	User                   string `json:"user" binding:"required"`
+	Password               string `json:"password" binding:"required"`
+	Encryption             string `json:"encryption"`
+	MaxConnections         int    `json:"maxConnections"`
+	TrustServerCertificate *bool  `json:"trustServerCertificate"`
 }
 
 func (ci ConnInfo) LogValue() slog.Value {
