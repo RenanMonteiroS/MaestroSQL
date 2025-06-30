@@ -247,7 +247,7 @@ Edit `config/config.go`:
 
 ```go
 const (
-    UseAuthentication = true                    // Enable/disable authentication
+    AuthenticatorUsage = true                    // Enable/disable authentication
     AuthenticatorURL  = "http://localhost:8080" // External auth service URL
 )
 ```

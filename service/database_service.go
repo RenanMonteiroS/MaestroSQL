@@ -40,7 +40,7 @@ func (ds *DatabaseService) IsAuth(authorization *[]string) error {
 
 	var responseBody ResponseBody
 
-	if config.UseAuthentication != true {
+	if config.AuthenticatorUsage != true {
 		return nil
 	}
 

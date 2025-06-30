@@ -36,6 +36,7 @@ func main() {
 	slog.SetDefault(logger)
 
 	// Create an instance of the Gin Server Engine to be runned
+	serverAddr := fmt.Sprintf(config.AppHost + ":" + fmt.Sprint(config.AppPort))
 	server := gin.Default()
 
 	// Creates the templates that will be served. It uses template.ParseFS to read the system's fs instead of the OS's fs. The embed templates will be read
@@ -57,17 +58,35 @@ func main() {
 	// Initialize the "/" HTTP route, serving the HTML template file, providing some variables to the template
 	server.GET("/", func(c *gin.Context) {
 		c.HTML(http.StatusOK, "backupForm.html", gin.H{
-			"useAuth":          config.UseAuthentication,
+			"useAuth":          config.AuthenticatorUsage,
 			"authenticatorURL": config.AuthenticatorURL,
 		})
 	})
 
-	// Opens the URL in the browser and starts the server
-	go openFile("http://localhost:8000/")
+	var serverProtocol string
 
-	fmt.Println("MaestroSQL started. Your application is running at: http://localhost:8000/")
-	logger.Info("MaestroSQL started. Your application is running at: http://localhost:8000/")
-	server.Run(":8000")
+	if config.AppCertificateUsage {
+		serverProtocol = "https"
+	} else {
+		serverProtocol = "http"
+	}
+
+	// Opens the URL in the browser and starts the server
+	if config.AppHost == "0.0.0.0" {
+		go openFile(fmt.Sprintf("%v://%v:%v/", serverProtocol, "127.0.0.1", config.AppPort))
+	} else {
+		go openFile(fmt.Sprintf("%v://%v/", serverProtocol, serverAddr))
+	}
+
+	fmt.Printf("MaestroSQL started. Your application is running at: http://%v/", serverAddr)
+	logger.Info(fmt.Sprintf("MaestroSQL started. Your application is running at: http://%v/", serverAddr))
+
+	if config.AppCertificateUsage {
+		server.RunTLS(serverAddr, config.AppCertificateLocation, config.AppCertificateKeyLocation)
+	} else {
+		server.Run(serverAddr)
+	}
+
 }
 
 // Opens the browser to some URL. The command executed depends on the type of operating system.
