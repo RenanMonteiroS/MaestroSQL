@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -40,7 +41,11 @@ func (dc *DatabaseController) ConnectDatabase(ctx *gin.Context) {
 
 	conn, err := dc.service.ConnectDatabase(connInfo)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, map[string]any{"msg": err.Error()})
+		if errors.Is(err, service.ErrPortAndInstanceEmpty) {
+			ctx.JSON(http.StatusBadRequest, map[string]any{"msg": err.Error()})
+		} else {
+			ctx.JSON(http.StatusInternalServerError, map[string]any{"msg": err.Error()})
+		}
 		return
 	}
 

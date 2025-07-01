@@ -28,6 +28,11 @@ func NewDatabaseService(rp repository.DatabaseRepository) DatabaseService {
 	return DatabaseService{repository: rp}
 }
 
+// ErrPortAndInstanceEmpty is returned when both instance and port are empty.
+var (
+	ErrPortAndInstanceEmpty = errors.New("Instance and port are both empty")
+)
+
 // Makes a HTTP request to the authenticator's /isValid endpoint.
 // If the JWT into the Authorization header is not valid, it returns an error. Else, it returns nil
 func (ds *DatabaseService) IsAuth(authorization *[]string) error {
@@ -80,6 +85,11 @@ func (ds *DatabaseService) IsAuth(authorization *[]string) error {
 // Establish a connection with a database.
 // Args: connInfo -> A struct with connection params (host, port, user, password)
 func (ds *DatabaseService) ConnectDatabase(connInfo model.ConnInfo) (*sql.DB, error) {
+	if connInfo.Port == "" && connInfo.Instance == "" {
+		slog.Error("Cannot connect to database: ", "Error: ", ErrPortAndInstanceEmpty)
+		return nil, ErrPortAndInstanceEmpty
+	}
+
 	conn, err := ds.repository.ConnectDatabase(connInfo)
 	if err != nil {
 		slog.Error("Cannot connect to database: ", "Error: ", err)

@@ -330,8 +330,20 @@
                                     <input type="text" class="form-control" id="host" placeholder="localhost" required>
                                 </div>
                                 <div class="col-md-6 mb-3">
-                                    <label for="port" class="form-label">Port</label>
-                                    <input type="number" class="form-control" id="port" placeholder="1433" required>
+                                    <div id="port-field-group">
+                                        <label for="port" class="form-label">Port</label>
+                                        <a href="#" onclick="togglePortInstance(event)" class="btn btn-link btn-sm text-decoration-none p-1">
+                                            <i class="fas fa-sync-alt me-1"></i>or instance
+                                        </a>
+                                        <input type="number" class="form-control" id="port" placeholder="1433" required>
+                                    </div>
+                                    <div id="instance-field-group" class="d-none">
+                                        <label for="instance" class="form-label">Instance</label>
+                                        <a href="#" onclick="togglePortInstance(event)" class="btn btn-link btn-sm text-decoration-none p-1">
+                                            <i class="fas fa-sync-alt me-1"></i>or port
+                                        </a>
+                                        <input type="text" class="form-control" id="instance" placeholder="SQLEXPRESS">
+                                    </div>
                                 </div>
                             </div>
                             <div class="row">
@@ -637,6 +649,7 @@
                         port: document.getElementById('port').value,
                         user: document.getElementById('user').value,
                         password: document.getElementById('password').value,
+                        instance: document.getElementById('instance').value,
                         encryption: document.getElementById('encryption').value,
                         maxConnections: parseInt(document.getElementById('maxConnections').value) || 0,
                         trustServerCertificate: document.getElementById('trustServerCertificate').checked ? true : false
@@ -732,10 +745,11 @@
                 case 1:
                     const host = document.getElementById('host').value;
                     const port = document.getElementById('port').value;
+                    const instance = document.getElementById('instance').value
                     const user = document.getElementById('user').value;
                     const password = document.getElementById('password').value;
                     
-                    if (!host || !port || !user || !password) {
+                    if (!host || !user || !password || (!port && !instance)) {
                         alert('Please fill in all fields.');
                         return false;
                     }
@@ -1058,6 +1072,28 @@
                 headers['X-CSRF-TOKEN'] = csrfToken;
             }
             return headers;
+        }
+
+        function togglePortInstance(event) {
+            event.preventDefault();
+            const portGroup = document.getElementById('port-field-group');
+            const instanceGroup = document.getElementById('instance-field-group');
+            const portInput = document.getElementById('port');
+            const instanceInput = document.getElementById('instance');
+
+            if (portGroup.classList.contains('d-none')) {
+                portGroup.classList.remove('d-none');
+                instanceGroup.classList.add('d-none');
+                instanceInput.value = '';
+                portInput.setAttribute('required', '');
+                instanceInput.removeAttribute('required');
+            } else {
+                portGroup.classList.add('d-none');
+                instanceGroup.classList.remove('d-none');
+                portInput.value = '';
+                instanceInput.setAttribute('required', '');
+                portInput.removeAttribute('required');
+            }
         }
         
         //Starts GUI
