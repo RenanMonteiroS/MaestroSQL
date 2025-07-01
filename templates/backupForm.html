@@ -728,9 +728,16 @@
         }
 
         /**
-         * Returns to the last step
+         * Returns to the last step. If the step is the latest, if changes the button class to ensure the button is pressable again
         */
         function previousStep() {
+            if (currentStep === totalSteps) {
+                const executeBtn = document.getElementById('execute-btn');
+                executeBtn.disabled = false;
+                executeBtn.className = 'btn btn-success';
+                executeBtn.innerHTML = `<i class="fas fa-play me-1"></i> Execute operation`;
+            }
+
             if (currentStep > 1) {
                 currentStep--;
                 updateStepNavigation();
