@@ -16,6 +16,7 @@ import (
 	"github.com/RenanMonteiroS/MaestroSQLWeb/controller"
 	"github.com/RenanMonteiroS/MaestroSQLWeb/repository"
 	"github.com/RenanMonteiroS/MaestroSQLWeb/service"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
@@ -42,11 +43,23 @@ func main() {
 
 	serverIP := config.AppHost
 	serverAddr := fmt.Sprintf(config.AppHost + ":" + fmt.Sprint(config.AppPort))
+	localIP := getOutboundIP()
 	var serverProtocol string
 
 	// Create an instance of the Gin Server Engine to be runned
 	server := gin.Default()
 
+	// Configure CORS usage
+	if config.CORSUsage {
+		server.Use(cors.New(cors.Config{
+			AllowOrigins:     config.CORSAllowOrigins,
+			AllowMethods:     []string{"GET", "POST"},
+			AllowHeaders:     []string{"Content-Type", "Authorization"},
+			AllowCredentials: true,
+		}))
+	}
+
+	// Configure CSRF token usage
 	if config.AppCSRFTokenUsage {
 		store := cookie.NewStore([]byte(config.AppCSRFCookieSecret))
 		store.Options(sessions.Options{
@@ -92,7 +105,6 @@ func main() {
 
 	// Opens the URL in the browser and starts the server
 	if config.AppHost == "0.0.0.0" {
-		localIP := getOutboundIP()
 		serverIP = localIP
 		serverAddr = fmt.Sprintf(config.AppHost + ":" + fmt.Sprint(config.AppPort))
 		go openFile(fmt.Sprintf("%v://%v:%v/", serverProtocol, localIP, config.AppPort))
