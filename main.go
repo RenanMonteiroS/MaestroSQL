@@ -1,3 +1,4 @@
+//go:generate go-winres make --in winres.json
 package main
 
 import (

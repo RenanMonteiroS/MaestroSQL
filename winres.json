@@ -1,0 +1,29 @@
+{
+  "RT_GROUP_ICON": {
+    "1": {
+      "0409": "conductor.ico"
+    }
+  },
+  "RT_VERSION": {
+    "1": {
+      "0409": {
+        "fixed": {
+          "file_version": "1.7.0.0",
+          "product_version": "1.7.0.0"
+        },
+        "info": {
+          "0409": {
+            "CompanyName": "Renan Monteiro",
+            "FileDescription": "MaestroSQL - SQL Server Backup Manager",
+            "FileVersion": "1.7.0.0",
+            "InternalName": "MaestroSQL",
+            "LegalCopyright": "Copyright (c) 2025 Renan Monteiro",
+            "OriginalFilename": "MaestroSQL.exe",
+            "ProductName": "MaestroSQL",
+            "ProductVersion": "1.7.0.0"
+          }
+        }
+      }
+    }
+  }
+}

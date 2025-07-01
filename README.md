@@ -8,9 +8,9 @@ MaestroSQL addresses the complexity of SQL Server database management by providi
 
 - **Simplified Database Operations**: Easy-to-use web interface for backup and restore operations
 - **Concurrent Processing**: High-performance parallel processing for multiple database operations
-- **Security**: Optional JWT-based authentication with MFA support
+- **Security**: Optional JWT-based authentication with MFA support, CSRF and CORS protection, and SSL/TLS encryption.
 - **Cross-Platform**: Works on Windows, macOS, and Linux
-- **Real-time Monitoring**: Comprehensive logging and progress tracking
+- **Real-time Monitoring**: Comprehensive and structured logging and progress tracking
 
 ## 🚀 Features
 
@@ -19,11 +19,12 @@ MaestroSQL addresses the complexity of SQL Server database management by providi
 - 📊 **Database Discovery**: Automatic detection and listing of SQL Server databases
 - 💾 **Backup Operations**: Concurrent backup of multiple databases with timestamp naming
 - 🔄 **Restore Operations**: Intelligent restore from .bak files with automatic path resolution
-- 📝 **Comprehensive Logging**: Detailed operation logs for backup, restore, and error tracking
+- 📝 **Structured Logging**: Detailed and structured operation logs for backup, restore, and error tracking
 - 🎨 **Modern UI**: Bootstrap-based responsive web interface with step-by-step wizard
 
 ### Technical Features
 - ⚡ **Concurrent Processing**: Goroutine-based parallel operations for better performance
+- 🛡️ **Security**: CSRF and CORS protection, and SSL/TLS encryption
 - ⏱️ **Timeout Handling**: Configurable timeouts (10 min backup, 15 min restore)
 - 🔧 **Automatic Path Resolution**: Uses SQL Server's default data and log paths
 - 📁 **Smart File Handling**: Supports both .bak and .BAK file extensions
@@ -192,7 +193,12 @@ cd MaestroSQLWeb
 go mod tidy
 ```
 
-#### 3. Build the Application
+#### 3. Generate Assets
+```bash
+go generate
+```
+
+#### 4. Build the Application
 ```bash
 # For current platform
 go build -o MaestroSQL
@@ -207,7 +213,7 @@ GOOS=linux GOARCH=amd64 go build -o MaestroSQL
 GOOS=darwin GOARCH=amd64 go build -o MaestroSQL
 ```
 
-#### 4. Run the Application
+#### 5. Run the Application
 ```bash
 # Direct execution
 ./MaestroSQL
@@ -242,15 +248,23 @@ air
 
 ## ⚙️ Configuration
 
-### Authentication Configuration
-Edit `config/config.go`:
+All configuration is done in the `config/config.go` file.
 
-```go
-const (
-    AuthenticatorUsage = true                    // Enable/disable authentication
-    AuthenticatorURL  = "http://localhost:8080" // External auth service URL
-)
-```
+| Parameter | Description |
+| --- | --- |
+| `AuthenticatorUsage` | Enable or disable JWT authentication (via [OSI](https://github.com/RenanMonteiroS/OSI])). |
+| `AuthenticatorURL` | The URL of the external authentication service. |
+| `AppHost` | The host where the application will run. Use `0.0.0.0` to listen on all interfaces. |
+| `AppPort` | The port where the application will run. |
+| `AppOpenOnceRunned` | Open the browser automatically when the application starts. |
+| `AppCertificateUsage` | Enable or disable HTTPS. |
+| `AppCertificateLocation` | The path to the SSL certificate file. |
+| `AppCertificateKeyLocation` | The path to the SSL key file. |
+| `AppCSRFTokenUsage` | Enable or disable CSRF protection. |
+| `AppCSRFCookieSecret` | A secret for the cookie used for CSRF token verification. |
+| `AppCSRFTokenSecret` | A secret for the token used for CSRF token verification. |
+| `CORSUsage` | Enable or disable CORS. |
+| `CORSAllowOrigins` | A list of allowed origins for CORS. |
 
 ## 📋 Usage Guide
 
@@ -299,7 +313,7 @@ Example: `MyDatabase=2024-06-24_14-30-15.bak`
 #### Log Files
 - `backup.log`: Backup operation logs
 - `restore.log`: Restore operation logs
-- `fatal.log`: Critical error logs
+- `app.log`: All app related logs
 
 ## 🔧 Advanced Features
 
@@ -324,7 +338,8 @@ Example: `MyDatabase=2024-06-24_14-30-15.bak`
 - Optional JWT-based authentication
 - MFA support through external authenticator
 - Secure credential handling (passwords not logged)
-- HTTPS support (configure reverse proxy)
+- HTTPS support with SSL/TLS certificates
+- CSRF and CORS protection
 
 ## 📊 Monitoring and Logging
 
@@ -334,14 +349,12 @@ Example: `MyDatabase=2024-06-24_14-30-15.bak`
 - Automatic log rotation recommended for production
 
 ### Log Formats
-```
-# Backup/Restore logs
-2024-06-24 14:30:15 - Backup related to [DatabaseName] database completed
-2024-06-24 14:30:15 - Backups total: 5
-2024-06-24 14:30:15 - Tempo time: 2m30s
-
-# Error logs
-2024-06-24 14:30:15 - Error: Connection timeout after 30 seconds
+The application uses a structured logging format (JSON) for easy parsing and analysis.
+```json
+{"level":"info","time":"2024-07-01T14:30:15-03:00","message":"Backup related to [DatabaseName] database completed"}
+{"level":"info","time":"2024-07-01T14:30:15-03:00","message":"Backups total: 5"}
+{"level":"info","time":"2024-07-01T14:30:15-03:00","message":"Tempo time: 2m30s"}
+{"level":"error","time":"2024-07-01T14:30:15-03:00","message":"Error: Connection timeout after 30 seconds"}
 ```
 
 ### Performance Metrics
@@ -430,21 +443,10 @@ For support and questions:
 
 ### TODOs
 
-- Environment Variables: Permit to set these environment variables for advanced configuration:
-  ```bash
-  # Server configuration
-  MAESTRO_PORT=8000
-  MAESTRO_HOST=localhost
-
-  # Database defaults
-  MAESTRO_DB_TIMEOUT=600  # seconds
-  MAESTRO_BACKUP_TIMEOUT=600
-  MAESTRO_RESTORE_TIMEOUT=900
-
-  # Logging
-  MAESTRO_LOG_PATH=/var/log/maestrosql/
-  ```
-
+- Login into the database server with instance, instead of port
+- Choose every database name, for each .bak file in restore
+- Built in authentication
+- Disable the same connection pool for all operations, making all requests independent
 - Support for MySQL and PostgreSQL
 - Backup encryption
 - Support for pt-br
