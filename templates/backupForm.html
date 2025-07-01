@@ -415,16 +415,8 @@
                         <div class="mt-3" id="databaseSelectButtons">
                             
                         </div>
-                        <div class="mt-3">
-                            <div class="col-md-12 mb-3">
-                                <label for="path" class="form-label">Backups path</label>
-                                <i class="fas fa-info-circle info-icon" 
-                                       data-bs-toggle="tooltip" 
-                                       data-bs-placement="right" 
-                                       title="By default, if this field is empty, the default SQL Server backup path is used.">
-                                </i>
-                                <input type="text" class="form-control" id="path" placeholder="C:/Backups">
-                           </div>                           
+                        <div class="mt-3" id="backup-path">
+                                                       
                         </div>
                     </div>
 
@@ -649,8 +641,6 @@
                         maxConnections: parseInt(document.getElementById('maxConnections').value) || 0,
                         trustServerCertificate: document.getElementById('trustServerCertificate').checked ? true : false
                     };
-                    
-                    console.log(getHeaders());
 
                     const response = await fetch(`${appAddr}/connect`, {
                         method: 'POST',
@@ -686,18 +676,40 @@
                 if (currentStep === 3 && document.querySelector('input[name="operation"]:checked').value === 'backup') {
                     const databaseContainer = document.querySelector('#step-3 .row');
                     const databaseSelectButtons = document.querySelector("#databaseSelectButtons");
+                    const backupPath = document.querySelector("#backup-path");
 
                     databaseContainer.innerHTML = '';
                     databaseSelectButtons.innerHTML = '';
+                    backupPath.innerHTML = 
+                        `<div class="col-md-12 mb-3">
+                                <label for="path" class="form-label">Backups path</label>
+                                <i class="fas fa-info-circle info-icon" 
+                                       data-bs-toggle="tooltip" 
+                                       data-bs-placement="right" 
+                                       title="By default, if this field is empty, the default SQL Server backup path is used.">
+                                </i>
+                                <input type="text" class="form-control" id="path" placeholder="C:/Backups">
+                        </div>`;
                     
                     await loadDatabases();
                 }
                 else if (currentStep === 3 && document.querySelector('input[name="operation"]:checked').value === 'restore') {
                     const databaseContainer = document.querySelector('#step-3 .row');
                     const databaseSelectButtons = document.querySelector("#databaseSelectButtons");
+                    const backupPath = document.querySelector("#backup-path");
 
                     databaseContainer.innerHTML = '';
                     databaseSelectButtons.innerHTML = '';
+                    backupPath.innerHTML = 
+                        `<div class="col-md-12 mb-3">
+                                <label for="path" class="form-label">Backups path</label>
+                                <i class="fas fa-info-circle info-icon" 
+                                       data-bs-toggle="tooltip" 
+                                       data-bs-placement="right" 
+                                       title="The path where the backups are stored.">
+                                </i>
+                                <input type="text" class="form-control" id="path" placeholder="C:/Backups/">
+                        </div>`;
                 }
             }
         }
