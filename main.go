@@ -3,6 +3,7 @@ package main
 
 import (
 	"embed"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"log/slog"
@@ -21,13 +22,18 @@ import (
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
+	"github.com/nicksnyder/go-i18n/v2/i18n"
 	csrf "github.com/utrack/gin-csrf"
+	"golang.org/x/text/language"
 )
 
 // Embeds HTML templates. Allows files within the templates folder to be referenced without having them on the computer when the application is compiled.
 
 //go:embed templates/*
 var TemplateFS embed.FS
+
+//go:embed locales/*.json
+var LocaleFS embed.FS
 
 func main() {
 	logFile, err := os.OpenFile("app.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
@@ -55,7 +61,7 @@ func main() {
 		server.Use(cors.New(cors.Config{
 			AllowOrigins:     config.CORSAllowOrigins,
 			AllowMethods:     []string{"GET", "POST"},
-			AllowHeaders:     []string{"Content-Type", "Authorization"},
+			AllowHeaders:     []string{"Content-Type", "Authorization", "Accept-Language", "X-Csrf-Token"},
 			AllowCredentials: true,
 		}))
 	}
@@ -113,8 +119,21 @@ func main() {
 		go openFile(fmt.Sprintf("%v://%v/", serverProtocol, serverAddr))
 	}
 
+	bundle := i18n.NewBundle(language.English)
+	bundle.RegisterUnmarshalFunc("json", json.Unmarshal)
+	bundle.LoadMessageFileFS(LocaleFS, `locales/en-US.json`)
+	bundle.LoadMessageFileFS(LocaleFS, `locales/pt-BR.json`)
+
+	server.Use(func(c *gin.Context) {
+		lang := c.GetHeader("Accept-Language")
+		localizer := i18n.NewLocalizer(bundle, lang)
+		c.Set("localizer", localizer)
+		c.Next()
+	})
+
 	// Initialize the "/" HTTP route, serving the HTML template file, providing some variables to the template
 	server.GET("/", func(c *gin.Context) {
+		localizer := c.MustGet("localizer").(*i18n.Localizer)
 		var varToServe gin.H
 		if config.AppCSRFTokenUsage {
 			varToServe = gin.H{
@@ -125,6 +144,11 @@ func main() {
 				"authenticatorUsage":  config.AuthenticatorUsage,
 				"authenticatorURL":    config.AuthenticatorURL,
 				"csrfToken":           csrf.GetToken(c),
+				"T": func(translationID string) string {
+					return localizer.MustLocalize(&i18n.LocalizeConfig{
+						MessageID: translationID,
+					})
+				},
 			}
 		} else {
 			varToServe = gin.H{
@@ -134,6 +158,11 @@ func main() {
 				"appCSRFTokenUsage":   config.AppCSRFTokenUsage,
 				"authenticatorUsage":  config.AuthenticatorUsage,
 				"authenticatorURL":    config.AuthenticatorURL,
+				"T": func(translationID string) string {
+					return localizer.MustLocalize(&i18n.LocalizeConfig{
+						MessageID: translationID,
+					})
+				},
 			}
 		}
 		c.HTML(http.StatusOK, "backupForm.html", varToServe)
