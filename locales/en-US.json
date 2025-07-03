@@ -67,5 +67,8 @@
   "operationError": "Error executing {operation} operation. Check server connection. {errorMessage}",
   "fillAllFieldsError": "Please fill in all fields.",
   "selectOperationError": "Please select an operation.",
-  "selectOneDatabaseError": "Please select at least one database."
+  "selectOneDatabaseError": "Please select at least one database.",
+  "orLoginWithOAuth2": "Or proceed with:",
+  "loginWithGoogle": "Login with Google",
+  "loginWithMicrosoft":"Login with Microsoft"
 }

@@ -66,5 +66,8 @@
   "operationError": "Erro ao executar a operação de {operation}. Verifique a conexão com o servidor. {errorMessage}",
   "fillAllFieldsError": "Por favor, preencha todos os campos.",
   "selectOperationError": "Por favor, selecione uma operação.",
-  "selectOneDatabaseError": "Por favor, selecione pelo menos um banco de dados."
+  "selectOneDatabaseError": "Por favor, selecione pelo menos um banco de dados.",
+  "orLoginWithOAuth2": "Ou prossiga com:",
+  "loginWithGoogle": "Entrar com Google",
+  "loginWithMicrosoft":"Entrar com Microsoft"
 }

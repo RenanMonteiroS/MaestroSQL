@@ -12,10 +12,12 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"slices"
 	"strings"
 
 	"github.com/RenanMonteiroS/MaestroSQLWeb/config"
 	"github.com/RenanMonteiroS/MaestroSQLWeb/controller"
+	"github.com/RenanMonteiroS/MaestroSQLWeb/middleware"
 	"github.com/RenanMonteiroS/MaestroSQLWeb/repository"
 	"github.com/RenanMonteiroS/MaestroSQLWeb/service"
 	"github.com/gin-contrib/cors"
@@ -93,16 +95,27 @@ func main() {
 	// Set the created templates in the Gin Server Engine
 	server.SetHTMLTemplate(tmpl)
 
+	AuthService := service.NewAuthService()
+	AuthController := controller.NewAuthController(AuthService)
+
 	// Initialize the layers instances
 	DatabaseRepository := repository.NewDatabaseRepository(nil)
 	DatabaseService := service.NewDatabaseService(DatabaseRepository)
 	DatabaseController := controller.NewDatabaseController(DatabaseService)
 
 	// Initialize the HTTP routes
-	server.POST("/connect", DatabaseController.ConnectDatabase)
-	server.GET("/databases", DatabaseController.GetDatabases)
-	server.POST("/backup", DatabaseController.BackupDatabase)
-	server.POST("/restore", DatabaseController.RestoreDatabase)
+	protected := server.Group("/")
+	protected.Use(middleware.AuthMiddleware())
+	{
+		protected.POST("/connect", DatabaseController.ConnectDatabase)
+		protected.GET("/databases", DatabaseController.GetDatabases)
+		protected.POST("/backup", DatabaseController.BackupDatabase)
+		protected.POST("/restore", DatabaseController.RestoreDatabase)
+	}
+
+	server.GET("/login", AuthController.LoginHandler)
+	server.GET("/auth/google/callback", AuthController.GoogleCallBackHandler)
+	server.GET("/auth/microsoft/callback", AuthController.MicrosoftCallBackHandler)
 
 	if config.AppCertificateUsage {
 		serverProtocol = "https"
@@ -135,36 +148,49 @@ func main() {
 	server.GET("/", func(c *gin.Context) {
 		localizer := c.MustGet("localizer").(*i18n.Localizer)
 		var varToServe gin.H
-		if config.AppCSRFTokenUsage {
-			varToServe = gin.H{
-				"appHost":             serverIP,
-				"appPort":             config.AppPort,
-				"appCertificateUsage": config.AppCertificateUsage,
-				"appCSRFTokenUsage":   config.AppCSRFTokenUsage,
-				"authenticatorUsage":  config.AuthenticatorUsage,
-				"authenticatorURL":    config.AuthenticatorURL,
-				"csrfToken":           csrf.GetToken(c),
-				"T": func(translationID string) string {
-					return localizer.MustLocalize(&i18n.LocalizeConfig{
-						MessageID: translationID,
-					})
-				},
-			}
-		} else {
-			varToServe = gin.H{
-				"appHost":             serverIP,
-				"appPort":             config.AppPort,
-				"appCertificateUsage": config.AppCertificateUsage,
-				"appCSRFTokenUsage":   config.AppCSRFTokenUsage,
-				"authenticatorUsage":  config.AuthenticatorUsage,
-				"authenticatorURL":    config.AuthenticatorURL,
-				"T": func(translationID string) string {
-					return localizer.MustLocalize(&i18n.LocalizeConfig{
-						MessageID: translationID,
-					})
-				},
-			}
+		var authenticationUsage bool
+		var authenticationOSIUsage bool
+		var authenticationGoogleOAuth2Usage bool
+		var authenticationMicrosoftOAuth2Usage bool
+
+		if slices.Contains(config.AuthenticationMethods, "OSI") {
+			authenticationOSIUsage = true
+			authenticationUsage = true
 		}
+
+		if slices.Contains(config.AuthenticationMethods, "OAUTH2GOOGLE") {
+			authenticationGoogleOAuth2Usage = true
+			authenticationUsage = true
+		}
+
+		if slices.Contains(config.AuthenticationMethods, "OAUTH2MICROSOFT") {
+			authenticationMicrosoftOAuth2Usage = true
+			authenticationUsage = true
+		}
+
+		varToServe = gin.H{
+			"appHost":                            serverIP,
+			"appPort":                            config.AppPort,
+			"appCertificateUsage":                config.AppCertificateUsage,
+			"appCSRFTokenUsage":                  config.AppCSRFTokenUsage,
+			"authenticatorUsage":                 config.AuthenticatorUsage,
+			"authenticatorURL":                   config.AuthenticatorURL,
+			"authenticationUsage":                authenticationUsage,
+			"authenticationMethods":              config.AuthenticationMethods,
+			"authenticationOSIUsage":             authenticationOSIUsage,
+			"authenticationGoogleOAuth2Usage":    authenticationGoogleOAuth2Usage,
+			"authenticationMicrosoftOAuth2Usage": authenticationMicrosoftOAuth2Usage,
+			"T": func(translationID string) string {
+				return localizer.MustLocalize(&i18n.LocalizeConfig{
+					MessageID: translationID,
+				})
+			},
+		}
+
+		if config.AppCSRFTokenUsage {
+			varToServe["csrfToken"] = csrf.GetToken(c)
+		}
+
 		c.HTML(http.StatusOK, "backupForm.html", varToServe)
 	})
 

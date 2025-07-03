@@ -2,7 +2,6 @@ package controller
 
 import (
 	"errors"
-	"fmt"
 	"net/http"
 
 	"github.com/RenanMonteiroS/MaestroSQLWeb/model"
@@ -138,7 +137,6 @@ func (dc *DatabaseController) RestoreDatabase(ctx *gin.Context) {
 
 	restoredDatabases, errRestore, err := dc.service.RestoreDatabase(backupFiles.Path)
 	if err != nil {
-		fmt.Println(err)
 		ctx.JSON(http.StatusInternalServerError, map[string]any{"msg": "No restore was completed.", "restoreErrors": err.Error()})
 		return
 	}
