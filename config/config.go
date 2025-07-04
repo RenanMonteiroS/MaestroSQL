@@ -10,7 +10,7 @@ const (
 	AppCertificateLocation         = ""                      // The location of the .crt/.pem file
 	AppCertificateKeyLocation      = ""                      // The location of the .key/.pem file
 	AppCSRFTokenUsage              = true                    // If the app will use CSRF tokens, to avoid CSRF attacks. Values: true/false
-	AppCSRFCookieSecret            = "my-supersecret-cookie" // A secret for the cookie used for CSRF Token verification
+	AppCSRFSessionSecret           = "my-supersecret-cookie" // A secret for the cookie used for encrypt sessions
 	AppCSRFTokenSecret             = "my-supersecret-token"  // A secret for the token used for CSRF Token verification
 	CORSUsage                      = true                    // If the app will use CORS. If true, all requests will pass through CORS verification. Values: true/false)
 	GoogleOAuth2RedirectURL        = ""

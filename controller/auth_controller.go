@@ -156,5 +156,13 @@ func (ac *AuthController) MicrosoftCallBackHandler(c *gin.Context) {
 }
 
 func (ac *AuthController) SessionHandler(c *gin.Context) {
+	session := sessions.Default(c)
+	sessionUserEmail := session.Get("userEmail")
 
+	if sessionUserEmail == nil {
+		c.JSON(http.StatusUnauthorized, map[string]any{"msg": "Session not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, map[string]any{"msg": fmt.Sprintf("Session found: %v", sessionUserEmail)})
 }

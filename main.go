@@ -70,7 +70,7 @@ func main() {
 
 	// Configure CSRF token usage
 	if config.AppCSRFTokenUsage {
-		store := cookie.NewStore([]byte(config.AppCSRFCookieSecret))
+		store := cookie.NewStore([]byte(config.AppCSRFSessionSecret))
 		store.Options(sessions.Options{
 			Path:     "/",
 			MaxAge:   86400,
@@ -78,7 +78,6 @@ func main() {
 			Secure:   config.AppCertificateUsage,
 			SameSite: http.SameSiteLaxMode,
 		})
-
 		server.Use(sessions.Sessions("maestro-sessions", store))
 		server.Use(csrf.Middleware(csrf.Options{
 			Secret: config.AppCSRFTokenSecret,
@@ -114,6 +113,7 @@ func main() {
 	}
 
 	server.GET("/login", AuthController.LoginHandler)
+	server.GET("/session", AuthController.SessionHandler)
 	server.GET("/auth/google/callback", AuthController.GoogleCallBackHandler)
 	server.GET("/auth/microsoft/callback", AuthController.MicrosoftCallBackHandler)
 
