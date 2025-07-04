@@ -23,16 +23,8 @@ func NewDatabaseController(sv service.DatabaseService) DatabaseController {
 // Handles the POST /connect endpoint.
 // Starts a connection pool for a database server instance. For each request, it checks if the user is authenticated.
 func (dc *DatabaseController) ConnectDatabase(ctx *gin.Context) {
-	authorization := ctx.Request.Header["Authorization"]
-
-	err := dc.service.IsAuth(&authorization)
-	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, map[string]any{"msg": err.Error()})
-		return
-	}
-
 	var connInfo model.ConnInfo
-	err = ctx.BindJSON(&connInfo)
+	err := ctx.BindJSON(&connInfo)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, map[string]any{"msg": err.Error()})
 		return
@@ -55,14 +47,6 @@ func (dc *DatabaseController) ConnectDatabase(ctx *gin.Context) {
 // Handles the GET /databases endpoint.
 // Gets all databases allocated in the database server instance. For each request, it checks if the user is authenticated.
 func (dc *DatabaseController) GetDatabases(ctx *gin.Context) {
-	authorization := ctx.Request.Header["Authorization"]
-
-	err := dc.service.IsAuth(&authorization)
-	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, map[string]any{"msg": err.Error()})
-		return
-	}
-
 	databases, err := dc.service.GetDatabases()
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, map[string]any{"msg": err.Error()})
@@ -76,14 +60,6 @@ func (dc *DatabaseController) GetDatabases(ctx *gin.Context) {
 // Handles the POST /backup endpoint.
 // Calls the backup functions. For each request, it checks if the user is authenticated.
 func (dc *DatabaseController) BackupDatabase(ctx *gin.Context) {
-	authorization := ctx.Request.Header["Authorization"]
-
-	err := dc.service.IsAuth(&authorization)
-	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, map[string]any{"msg": err.Error()})
-		return
-	}
-
 	type PostRequired struct {
 		Databases []model.Database `json:"databases" binding:"required"`
 		Path      string           `json:"path" binding:"required"`
@@ -91,7 +67,7 @@ func (dc *DatabaseController) BackupDatabase(ctx *gin.Context) {
 
 	var postData PostRequired
 
-	err = ctx.BindJSON(&postData)
+	err := ctx.BindJSON(&postData)
 
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, err)
@@ -119,17 +95,9 @@ func (dc *DatabaseController) BackupDatabase(ctx *gin.Context) {
 // Handles the POST /restore endpoint.
 // Calls the restore functions. For each request, it checks if the user is authenticated.
 func (dc *DatabaseController) RestoreDatabase(ctx *gin.Context) {
-	authorization := ctx.Request.Header["Authorization"]
-
-	err := dc.service.IsAuth(&authorization)
-	if err != nil {
-		ctx.JSON(http.StatusUnauthorized, map[string]any{"msg": err.Error()})
-		return
-	}
-
 	var backupFiles model.BackupFiles
 
-	err = ctx.BindJSON(&backupFiles)
+	err := ctx.BindJSON(&backupFiles)
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, err)
 		return

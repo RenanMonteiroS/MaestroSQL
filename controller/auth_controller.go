@@ -1,8 +1,11 @@
 package controller
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -50,23 +53,108 @@ var microsoftOAuthConfig = &oauth2.Config{
 
 func (ac *AuthController) LoginHandler(c *gin.Context) {
 	var url string
-	state := ac.service.GenerateStateOAuthCookie()
 
-	session := sessions.Default(c)
-	session.Set("oauth_state", state)
-	session.Save()
+	fmt.Println("Heyyy")
 
-	oAuthMethod := c.Query("method")
-	if oAuthMethod == "google" {
+	authMethod := c.Query("method")
+	if authMethod == "google" {
+		state := ac.service.GenerateStateOAuthCookie()
+		fmt.Println("Google")
+		session := sessions.Default(c)
+		session.Set("oauth_state", state)
+		session.Save()
+
 		url = googleOAuthConfig.AuthCodeURL(state)
-	} else if oAuthMethod == "microsoft" {
+	} else if authMethod == "microsoft" {
+		state := ac.service.GenerateStateOAuthCookie()
+
+		session := sessions.Default(c)
+		session.Set("oauth_state", state)
+		session.Save()
+
 		url = microsoftOAuthConfig.AuthCodeURL(state)
+	} else if authMethod == "osi" {
+		if c.Request.Method != "POST" {
+			c.JSON(http.StatusMethodNotAllowed, gin.H{"msg": "OSI login requires POST"})
+			return
+		}
+		url = config.AuthenticatorURL + "/login"
+
+		type osiLoginResponse struct {
+			JWT      *string `json:"JWT"`
+			Msg      string  `json:"msg"`
+			Status   string  `json:"status"`
+			UserInfo *struct {
+				Email           string `json:"email"`
+				ID              string `json:"id"`
+				TokenExpiration string `json:"tokenExpiration"`
+			} `json:"userInfo,omitempty"`
+		}
+
+		body, err := io.ReadAll(c.Request.Body)
+		if err != nil {
+			slog.Error("Error reading request body", "Error", err)
+			c.JSON(http.StatusInternalServerError, map[string]any{"msg": fmt.Sprintf("Error binding JSON %v", err)})
+			return
+		}
+
+		client := http.Client{}
+		req, err := http.NewRequest("POST", url, bytes.NewReader(body))
+		if err != nil {
+			slog.Error("Error creating request", "URL", url, "Error", err)
+			c.JSON(http.StatusInternalServerError, map[string]any{"msg": fmt.Sprintf("Error binding JSON %v", err)})
+			return
+		}
+		header := http.Header{"Content-Type": {"application/json"}}
+		req.Header = header
+
+		res, err := client.Do(req)
+		if err != nil {
+			slog.Error("Error making request", "URL", url, "Error", err)
+			c.JSON(http.StatusInternalServerError, map[string]any{"msg": fmt.Sprintf("Error binding JSON %v", err)})
+			return
+		}
+		defer res.Body.Close()
+
+		var osiRes osiLoginResponse
+
+		err = json.NewDecoder(res.Body).Decode(&osiRes)
+		if err != nil {
+			slog.Error("Cannot decode request body", "URL", url, "Error", err)
+			c.JSON(http.StatusInternalServerError, map[string]any{"msg": fmt.Sprintf("Cannot decode request body %v", err)})
+			return
+		}
+
+		if res.StatusCode != 200 {
+			slog.Error("Request status is not OK", "URL", url, "Error", osiRes.Msg)
+			c.JSON(http.StatusBadRequest, map[string]any{"msg": fmt.Sprintf("Request status is not OK %v", osiRes.Msg)})
+			return
+		}
+
+		session := sessions.Default(c)
+		fmt.Println(osiRes.UserInfo)
+		session.Set("userEmail", osiRes.UserInfo.Email)
+		session.Save()
+
+		slog.Info("Login done successfully", "User", osiRes.UserInfo.Email)
+
+		c.JSON(http.StatusOK, osiRes)
+
 	} else {
 		c.JSON(http.StatusNotFound, map[string]any{"msg": "Login method not allowed"})
 		return
 	}
 
 	c.Redirect(http.StatusTemporaryRedirect, url)
+}
+
+func (ac *AuthController) LogoutHandler(c *gin.Context) {
+	session := sessions.Default(c)
+
+	session.Delete("userEmail")
+
+	session.Save()
+	c.JSON(http.StatusOK, map[string]any{"msg": "Logout done successfully"})
 }
 
 func (ac *AuthController) GoogleCallBackHandler(c *gin.Context) {
@@ -164,5 +252,5 @@ func (ac *AuthController) SessionHandler(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, map[string]any{"msg": fmt.Sprintf("Session found: %v", sessionUserEmail)})
+	c.JSON(http.StatusOK, map[string]any{"msg": fmt.Sprintf("Session found: %v", sessionUserEmail), "userInfo": sessionUserEmail})
 }

@@ -2,17 +2,13 @@ package service
 
 import (
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
-	"github.com/RenanMonteiroS/MaestroSQLWeb/config"
 	"github.com/RenanMonteiroS/MaestroSQLWeb/model"
 	"github.com/RenanMonteiroS/MaestroSQLWeb/repository"
 )
@@ -32,55 +28,6 @@ func NewDatabaseService(rp repository.DatabaseRepository) DatabaseService {
 var (
 	ErrPortAndInstanceEmpty = errors.New("Instance and port are both empty")
 )
-
-// Makes a HTTP request to the authenticator's /isValid endpoint.
-// If the JWT into the Authorization header is not valid, it returns an error. Else, it returns nil
-func (ds *DatabaseService) IsAuth(authorization *[]string) error {
-	type ResponseBody struct {
-		Msg    string `json:"msg"`
-		Status string `json:"status"`
-	}
-
-	client := &http.Client{Timeout: 10 * time.Second}
-
-	var responseBody ResponseBody
-
-	if config.AuthenticatorUsage != true {
-		return nil
-	}
-
-	if len(*authorization) == 0 {
-		slog.Error("Authorization header not setted. Try to login into the system.")
-		return errors.New("Authorization header not setted")
-	}
-
-	auth := *authorization
-	req, err := http.NewRequest("GET", fmt.Sprintf("%v/isValid", config.AuthenticatorURL), nil)
-	req.Header.Set("Authorization", auth[0])
-	req.Header.Set("Content-Type", "application/json")
-
-	slog.Info("Trying to connect to: ", "URL: ", fmt.Sprintf("%v/isValid", config.AuthenticatorURL))
-	res, err := client.Do(req)
-	if err != nil {
-		slog.Error("Cannot connect to authenticator: ", "Error: ", err)
-		return err
-	}
-	defer res.Body.Close()
-	if res.StatusCode != 200 {
-		err := json.NewDecoder(res.Body).Decode(&responseBody)
-		if err != nil {
-			slog.Error("Cannot decode response body: ", "Error: ", err)
-			return err
-		}
-
-		slog.Error("Authentication failed: ", "Error: ", responseBody.Msg)
-		return errors.New(fmt.Sprintf("Authentication failed: %v", responseBody.Msg))
-	}
-
-	slog.Info("Authentication completed sucessfully")
-	return nil
-
-}
 
 // Establish a connection with a database.
 // Args: connInfo -> A struct with connection params (host, port, user, password)

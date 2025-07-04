@@ -79,16 +79,17 @@ func main() {
 	})
 	server.Use(sessions.Sessions("maestro-sessions", store))
 
+	var csrfMiddleware gin.HandlerFunc
 	// Configure CSRF token usage
 	if config.AppCSRFTokenUsage {
-		server.Use(csrf.Middleware(csrf.Options{
+		csrfMiddleware = csrf.Middleware(csrf.Options{
 			Secret: config.AppCSRFTokenSecret,
 			ErrorFunc: func(c *gin.Context) {
 				slog.Error("CSRF token mismatch")
 				c.JSON(400, gin.H{"msg": "CSRF token mismatch"})
 				c.Abort()
 			},
-		}))
+		})
 	}
 
 	// Creates the templates that will be served. It uses template.ParseFS to read the system's fs instead of the OS's fs. The embed templates will be read
@@ -105,8 +106,17 @@ func main() {
 	DatabaseController := controller.NewDatabaseController(DatabaseService)
 
 	// Initialize the HTTP routes
+
+	// If the app uses some sort of authentication, starts a security middleware
 	protected := server.Group("/")
-	protected.Use(middleware.AuthMiddleware())
+	if len(config.AuthenticationMethods) > 0 {
+		protected.Use(middleware.AuthMiddleware())
+	}
+
+	// If the app uses CSRF protection, starts a CSRF security middleware into the general routes
+	if config.AppCSRFTokenUsage {
+		protected.Use(csrfMiddleware)
+	}
 	{
 		protected.POST("/connect", DatabaseController.ConnectDatabase)
 		protected.GET("/databases", DatabaseController.GetDatabases)
@@ -114,10 +124,20 @@ func main() {
 		protected.POST("/restore", DatabaseController.RestoreDatabase)
 	}
 
-	server.GET("/login", AuthController.LoginHandler)
-	server.GET("/session", AuthController.SessionHandler)
-	server.GET("/auth/google/callback", AuthController.GoogleCallBackHandler)
-	server.GET("/auth/microsoft/callback", AuthController.MicrosoftCallBackHandler)
+	// If the app uses CSRF protection, starts a CSRF security middleware into the authentication routes
+	authRoutes := server.Group("/")
+	if config.AppCSRFTokenUsage {
+		authRoutes.Use(csrfMiddleware)
+	}
+	{
+		authRoutes.Any("/login", AuthController.LoginHandler)
+		authRoutes.GET("/logout", AuthController.LogoutHandler)
+		authRoutes.GET("/session", AuthController.SessionHandler)
+	}
+
+	oAuth2Routes := server.Group("/")
+	oAuth2Routes.GET("/auth/google/callback", AuthController.GoogleCallBackHandler)
+	oAuth2Routes.GET("/auth/microsoft/callback", AuthController.MicrosoftCallBackHandler)
 
 	if config.AppCertificateUsage {
 		serverProtocol = "https"
@@ -145,6 +165,11 @@ func main() {
 		c.Set("localizer", localizer)
 		c.Next()
 	})
+
+	// If the app uses CSRF protection, starts a CSRF security middleware into the "/" route
+	if config.AppCSRFTokenUsage {
+		server.Use(csrfMiddleware)
+	}
 
 	// Initialize the "/" HTTP route, serving the HTML template file, providing some variables to the template
 	server.GET("/", func(c *gin.Context) {
@@ -175,7 +200,6 @@ func main() {
 			"appPort":                            config.AppPort,
 			"appCertificateUsage":                config.AppCertificateUsage,
 			"appCSRFTokenUsage":                  config.AppCSRFTokenUsage,
-			"authenticatorUsage":                 config.AuthenticatorUsage,
 			"authenticatorURL":                   config.AuthenticatorURL,
 			"authenticationUsage":                authenticationUsage,
 			"authenticationMethods":              config.AuthenticationMethods,
@@ -192,7 +216,6 @@ func main() {
 		if config.AppCSRFTokenUsage {
 			varToServe["csrfToken"] = csrf.GetToken(c)
 		}
-
 		c.HTML(http.StatusOK, "backupForm.html", varToServe)
 	})
 

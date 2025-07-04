@@ -1,7 +1,6 @@
 package config
 
 const (
-	AuthenticatorUsage             = false                    // If the app uses an JWT authenticator. Values: true/false
 	AuthenticatorURL               = "http://localhost:8081"  // The address to make calls to get a JWT. Values: Your authenticator address
 	AppHost                        = "localhost"              // The host where the app will run. 0.0.0.0 to all addresses. If 0.0.0.0 is specified, the local IP is used for requests
 	AppPort                        = 8881                     // The port where the app will run
@@ -13,13 +12,13 @@ const (
 	AppCSRFTokenUsage              = true                     // If the app will use CSRF tokens, to avoid CSRF attacks. Values: true/false
 	AppCSRFTokenSecret             = "my-supersecret-token"   // A secret for the token used for CSRF Token verification
 	CORSUsage                      = true                     // If the app will use CORS. If true, all requests will pass through CORS verification. Values: true/false)
-	GoogleOAuth2RedirectURL        = ""
-	GoogleOAuth2ClientID           = ""
-	GoogleOAuth2ClientSecret       = ""
-	MicrosoftOAuth2RedirectURL     = ""
-	MicrosoftOAuth2ClientID        = ""
-	MicrosoftOAuth2ClientSecret    = ""
-	MicrosoftOAuth2AzureADEndpoint = ""
+	GoogleOAuth2RedirectURL        = ""                       // The redirect URL. Usually it will be https://yourdomain.com/auth/google/callback. It need to be configured in your Google OAuth2 Client
+	GoogleOAuth2ClientID           = ""                       // The Google OAuth2 Client ID
+	GoogleOAuth2ClientSecret       = ""                       // The Google OAuth2 Client Secret
+	MicrosoftOAuth2RedirectURL     = ""                       // The redirect URL. Usually it will be https://yourdomain.com/auth/microsoft/callback. It need to be configured in your Google OAuth2 Client
+	MicrosoftOAuth2ClientID        = ""                       // The Microsoft OAuth2 Client ID
+	MicrosoftOAuth2ClientSecret    = ""                       // The Microsoft OAuth2 Client Secret
+	MicrosoftOAuth2AzureADEndpoint = ""                       // The Microsoft Azure tenant ID
 )
 
 var (

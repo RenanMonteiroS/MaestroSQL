@@ -604,35 +604,28 @@
         let authModal;
 
         //These variables will be replaced by Go
-        const authenticatorUsage = {{ .authenticatorUsage }};
-        const authenticatorURL = "{{.authenticatorURL}}";
         const appCSRFTokenUsage = {{ .appCSRFTokenUsage }}
         const authenticationMethods = {{ .authenticationMethods }}
-        const appAddr = {{ .appCertificateUsage }} ? "https://{{.appHost}}" + ":" + "{{.appPort}}" : "http://{{.appHost}}" + ":" + "{{.appPort}}";
-
-        console.log(authenticationMethods)
 
         //When the document is loaded...
         document.addEventListener('DOMContentLoaded', async function() {   
-            if (authenticatorUsage || authenticatorURL) {
+            if (authenticationMethods.length > 0) {
                 const isAuthResult = await isAuth();
                 authModal = new bootstrap.Modal(document.getElementById('authModal'), {
                             backdrop: 'static',
                             keyboard: false
                 });
-                checkAuthenticationStatus();
-                updateAuthStatus(isAuthResult, getCookie('userEmail'));
+                
+                if (!isAuthResult) {
+                    authModal.show()
+                } else {
+                    updateAuthStatus(true, isAuthResult.userInfo);
+                }
+
+                
             }
         });
 
-        /**
-         * If the user is not authenticated, then shows the modal
-        */
-        async function checkAuthenticationStatus() { 
-            if (!(await isAuth())) {
-                authModal.show();
-            }     
-        }
 
         
         /**
@@ -656,11 +649,12 @@
                     "mfaKey": document.getElementById('modalMfaToken').value,
                 };
 
-                const response = await fetch(`${authenticatorURL}/login`, {
+                console.log
+
+                headers = getHeaders()
+                const response = await fetch(`/login?method=osi`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: getHeaders(),
                     body: JSON.stringify(userDataPayload)
                 });
 
@@ -669,9 +663,6 @@
                 if (!response.ok) {
                     throw new Error(`Status: ${result.status}\nError: ${result.body.msg}`);
                 }
-                
-                document.cookie = `jwt=${result.body.JWT}; path=/`;
-                document.cookie = `userEmail=${result.body.userInfo.email}; path=/`;
                 
                 // Closes the modal
                 authModal.hide();
@@ -787,7 +778,7 @@
                         trustServerCertificate: document.getElementById('trustServerCertificate').checked ? true : false
                     };
 
-                    const response = await fetch(`${appAddr}/connect`, {
+                    const response = await fetch(`/connect`, {
                         method: 'POST',
                         headers: getHeaders(),
                         body: JSON.stringify(connectionData)
@@ -796,6 +787,9 @@
                     const result = {"status": await response.status, "body": await response.json()};
 
                     if (!response.ok) {
+                        if (response.status == 401) {
+                            authModal.show();
+                        }
                         throw new Error(`Status: ${result.status}\nError: ${result.body.msg}`);
                     }
 
@@ -935,13 +929,17 @@
                 `;
 
                 //Fetchs the backend /databases endpoint
-                const response = await fetch(`${appAddr}/databases`, {
+                const response = await fetch(`/databases`, {
                     method: 'GET',
                     headers: getHeaders(),
                 });
 
                 if (!response.ok) {
-                    throw new Error(`Status: ${result.status}\nError: ${result.body.msg}`);
+                    data = await response.json();
+                    if (response.status == 401) {
+                        authModal.show();
+                    }
+                    throw new Error(`Status: ${response.status}\nError: ${data.msg}`);
                 }
 
                 const databases = await response.json();
@@ -980,7 +978,9 @@
                             </button>`
                 
             } catch (error) {
+                alert(`Error loading databases: ${error.message}`);
                 console.error('Error loading databases:', error.message);
+                console.log('Error: ', error.message)
                 databaseContainer.innerHTML = `
                     <div class="col-12">
                         <div class="alert alert-danger">
@@ -1110,13 +1110,13 @@
                 let response;
                 
                 if (operation === 'backup') {
-                    response = await fetch(`${appAddr}/backup`, {
+                    response = await fetch(`/backup`, {
                         method: 'POST',
                         headers: getHeaders(),
                         body: JSON.stringify(requestData)
                     });
                     } else if (operation === 'restore') {
-                    response = await fetch(`${appAddr}/restore`, {
+                    response = await fetch(`/restore`, {
                         method: 'POST',
                         headers: getHeaders(),
                         body: JSON.stringify({backupFilesPath: document.getElementById('path').value})
@@ -1126,6 +1126,9 @@
                 const result = {"status": await response.status, "body": await response.json()};
 
                 if (!response.ok) {
+                    if (response.status == 401) {
+                        authModal.show();
+                    }
                     throw new Error(`Status: ${result.status}\nError: ${result.body.msg}`);
                 }
 
@@ -1147,21 +1150,28 @@
         /**
          * Emptys the session/JWT cookies
         */
-        function logout() {
-            document.cookie = 'jwt=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-            document.cookie = 'userEmail=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-            updateAuthStatus(false);
-            checkAuthenticationStatus(); // Shows modal again
-        }
+        async function logout() {
+            try {
+                response = await fetch(`/logout`, {
+                                    method: "GET",
+                                    headers: getHeaders()
+                                }
+                            );
 
-        /**
-         * Gets the document cookies, and filter it, searching for the key defined on the arg.
-         * @param {string} name - Cookie name
-        */
-        function getCookie(name) {
-            const value = `; ${document.cookie}`;
-            const parts = value.split(`; ${name}=`);
-            if (parts.length === 2) return parts.pop().split(';').shift();
+                if (!response.ok) {
+                    throw new Error(`Error trying to fetch the URL: ${window.location.href}`);
+                }
+                
+                updateAuthStatus(false);
+                authModal.show();
+
+            } 
+            catch(err) {
+                console.log(`Error trying to logout: ${err}`)
+                alert(`Error trying to logout: ${err}`);
+            }
+            
+            
         }
 
         /**
@@ -1169,26 +1179,22 @@
          * @returns {boolean}
         */
         async function isAuth(){
-            const jwt = getCookie('userEmail');
-
-            if (typeof jwt === 'undefined') {
-                return false;
-            } else {
-                if (authenticationMethods.includes("OSI") && authenticationMethods.length === 1) {
-                    const response = await fetch(`${authenticatorURL}/isValid`, {
-                        headers: {
-                            "Authorization": `Bearer ${jwt}` 
-                        }
-                    });
-
-                    if (!response.ok) {
-                        return false;
-                    }
-
-                    return true;
+            try {
+                response = await fetch(`/session`, {
+                    method: "GET",
+                    headers: getHeaders()
+                });
+                if (!response.ok) {
+                    return false;
                 }
-                return true;
+                data = await response.json();
+                return data;
             }
+            catch (err){
+                console.log(`Error while trying to get session: ${err}`);
+                alert(`Error while trying to get session: ${err}`);
+            }
+            
         }
 
         /**
@@ -1202,13 +1208,6 @@
             const headers = {
                 'Content-Type': 'application/json',
             };
-
-            if (authenticatorUsage) {
-                const jwt = getCookie('jwt');
-                if (jwt) {
-                    headers['Authorization'] = `Bearer ${jwt}`;
-                }
-            }
 
             if(appCSRFTokenUsage) {
                 headers['X-CSRF-TOKEN'] = csrfToken;
