@@ -68,17 +68,19 @@ func main() {
 		}))
 	}
 
+	// Starts a Session Cookie Store
+	store := cookie.NewStore([]byte(config.AppSessionSecret))
+	store.Options(sessions.Options{
+		Path:     "/",
+		MaxAge:   86400,
+		HttpOnly: true,
+		Secure:   config.AppCertificateUsage,
+		SameSite: http.SameSiteLaxMode,
+	})
+	server.Use(sessions.Sessions("maestro-sessions", store))
+
 	// Configure CSRF token usage
 	if config.AppCSRFTokenUsage {
-		store := cookie.NewStore([]byte(config.AppCSRFSessionSecret))
-		store.Options(sessions.Options{
-			Path:     "/",
-			MaxAge:   86400,
-			HttpOnly: true,
-			Secure:   config.AppCertificateUsage,
-			SameSite: http.SameSiteLaxMode,
-		})
-		server.Use(sessions.Sessions("maestro-sessions", store))
 		server.Use(csrf.Middleware(csrf.Options{
 			Secret: config.AppCSRFTokenSecret,
 			ErrorFunc: func(c *gin.Context) {
