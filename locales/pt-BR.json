@@ -69,5 +69,14 @@
   "selectOneDatabaseError": "Por favor, selecione pelo menos um banco de dados.",
   "orLoginWithOAuth2": "Ou prossiga com:",
   "loginWithGoogle": "Entrar com Google",
-  "loginWithMicrosoft":"Entrar com Microsoft"
+  "loginWithMicrosoft":"Entrar com Microsoft",
+  "notFoundPhrase1": "Nem toda improvisação leva ao solo certo. Volte ao início e tente outra harmonia.",
+  "notFoundPhrase2": "Você saiu do tom… mas felizmente a orquestra continua afinada.",
+  "notFoundPhrase3": "Essa página perdeu o compasso. Voltemos do início!",
+  "notFoundPhrase4": "Você saiu da melodia principal. Volte ao refrão!",
+  "notFoundErrorTitle": "Oops! Página não encontrada",
+  "notFoundMaestroTip": "Dica do Maestro:",
+  "notFoundPreviousPage": "Voltar",
+  "notFoundHomePage": "Página Inicial",
+  "notFoundPageTitle": "Página não encontrada"
 }

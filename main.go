@@ -107,6 +107,21 @@ func main() {
 
 	// Initialize the HTTP routes
 
+	// If the app uses CSRF protection, starts a CSRF security middleware into the authentication routes
+	authRoutes := server.Group("/")
+	if config.AppCSRFTokenUsage {
+		authRoutes.Use(csrfMiddleware)
+	}
+	{
+		authRoutes.Any("/login", AuthController.LoginHandler)
+		authRoutes.GET("/logout", AuthController.LogoutHandler)
+		authRoutes.GET("/session", AuthController.SessionHandler)
+	}
+
+	oAuth2Routes := server.Group("/")
+	oAuth2Routes.GET("/auth/google/callback", AuthController.GoogleCallBackHandler)
+	oAuth2Routes.GET("/auth/microsoft/callback", AuthController.MicrosoftCallBackHandler)
+
 	// If the app uses some sort of authentication, starts a security middleware
 	protected := server.Group("/")
 	if len(config.AuthenticationMethods) > 0 {
@@ -123,21 +138,6 @@ func main() {
 		protected.POST("/backup", DatabaseController.BackupDatabase)
 		protected.POST("/restore", DatabaseController.RestoreDatabase)
 	}
-
-	// If the app uses CSRF protection, starts a CSRF security middleware into the authentication routes
-	authRoutes := server.Group("/")
-	if config.AppCSRFTokenUsage {
-		authRoutes.Use(csrfMiddleware)
-	}
-	{
-		authRoutes.Any("/login", AuthController.LoginHandler)
-		authRoutes.GET("/logout", AuthController.LogoutHandler)
-		authRoutes.GET("/session", AuthController.SessionHandler)
-	}
-
-	oAuth2Routes := server.Group("/")
-	oAuth2Routes.GET("/auth/google/callback", AuthController.GoogleCallBackHandler)
-	oAuth2Routes.GET("/auth/microsoft/callback", AuthController.MicrosoftCallBackHandler)
 
 	if config.AppCertificateUsage {
 		serverProtocol = "https"
@@ -159,10 +159,17 @@ func main() {
 	bundle.LoadMessageFileFS(LocaleFS, `locales/en-US.json`)
 	bundle.LoadMessageFileFS(LocaleFS, `locales/pt-BR.json`)
 
+	// Starts a middleware to handle multilinguals
 	server.Use(func(c *gin.Context) {
+		// Gets the Accept Language header
 		lang := c.GetHeader("Accept-Language")
+
+		// Starts a new localizer looks up messages in the bundle according to the language preferences in langs
 		localizer := i18n.NewLocalizer(bundle, lang)
+
+		// Sets a key-value with the localizer
 		c.Set("localizer", localizer)
+
 		c.Next()
 	})
 
@@ -217,6 +224,26 @@ func main() {
 			varToServe["csrfToken"] = csrf.GetToken(c)
 		}
 		c.HTML(http.StatusOK, "backupForm.html", varToServe)
+	})
+
+	// Not found route
+	server.NoRoute(func(ctx *gin.Context) {
+		localizer := ctx.MustGet("localizer").(*i18n.Localizer)
+
+		// If is an API request...
+		if strings.Contains(ctx.GetHeader("Accept"), "application/json") {
+			ctx.JSON(http.StatusNotFound, map[string]any{"msg": "Route not found"})
+		}
+
+		varsToServe := gin.H{
+			"T": func(translationID string) string {
+				return localizer.MustLocalize(&i18n.LocalizeConfig{
+					MessageID: translationID,
+				})
+			},
+		}
+
+		ctx.HTML(http.StatusNotFound, "404.html", varsToServe)
 	})
 
 	fmt.Printf("MaestroSQL started. Your application is running at: http://%v/", serverAddr)

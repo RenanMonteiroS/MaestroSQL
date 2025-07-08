@@ -70,5 +70,14 @@
   "selectOneDatabaseError": "Please select at least one database.",
   "orLoginWithOAuth2": "Or proceed with:",
   "loginWithGoogle": "Login with Google",
-  "loginWithMicrosoft":"Login with Microsoft"
+  "loginWithMicrosoft":"Login with Microsoft",
+  "notFoundPhrase1": "Not every improvisation leads to the right solo. Go back to the beginning and try another harmony.",
+  "notFoundPhrase2": "You're out of tune... but luckily the orchestra is still in tune.",
+  "notFoundPhrase3": "This page has lost its rhythm. Let's go back to the beginning!",
+  "notFoundPhrase4": "You've gone off the main melody. Go back to the chorus!",
+  "notFoundErrorTitle": "Oops! Page not found",
+  "notFoundMaestroTip": "Maestro's tip",
+  "notFoundPreviousPage": "Previous",
+  "notFoundHomePage": "Home",
+  "notFoundPageTitle": "Page not found"
 }

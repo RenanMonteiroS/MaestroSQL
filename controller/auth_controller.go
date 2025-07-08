@@ -51,15 +51,13 @@ var microsoftOAuthConfig = &oauth2.Config{
 	Endpoint: microsoft.AzureADEndpoint(config.MicrosoftOAuth2AzureADEndpoint),
 }
 
+// Handles the user login. Allowed methods: OSI, Microsoft OAuth2 and Google OAuth2
 func (ac *AuthController) LoginHandler(c *gin.Context) {
 	var url string
-
-	fmt.Println("Heyyy")
 
 	authMethod := c.Query("method")
 	if authMethod == "google" {
 		state := ac.service.GenerateStateOAuthCookie()
-		fmt.Println("Google")
 		session := sessions.Default(c)
 		session.Set("oauth_state", state)
 		session.Save()
@@ -132,13 +130,13 @@ func (ac *AuthController) LoginHandler(c *gin.Context) {
 		}
 
 		session := sessions.Default(c)
-		fmt.Println(osiRes.UserInfo)
 		session.Set("userEmail", osiRes.UserInfo.Email)
 		session.Save()
 
 		slog.Info("Login done successfully", "User", osiRes.UserInfo.Email)
 
 		c.JSON(http.StatusOK, osiRes)
+		return
 
 	} else {
 		c.JSON(http.StatusNotFound, map[string]any{"msg": "Login method not allowed"})
@@ -148,6 +146,7 @@ func (ac *AuthController) LoginHandler(c *gin.Context) {
 	c.Redirect(http.StatusTemporaryRedirect, url)
 }
 
+// Deletes the user session
 func (ac *AuthController) LogoutHandler(c *gin.Context) {
 	session := sessions.Default(c)
 
@@ -157,6 +156,7 @@ func (ac *AuthController) LogoutHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, map[string]any{"msg": "Logout done successfully"})
 }
 
+// Receives the callback from Google OAuth2
 func (ac *AuthController) GoogleCallBackHandler(c *gin.Context) {
 	// Gets the session
 	session := sessions.Default(c)
@@ -197,6 +197,7 @@ func (ac *AuthController) GoogleCallBackHandler(c *gin.Context) {
 	c.Redirect(http.StatusPermanentRedirect, "/")
 }
 
+// Receives the callback from Microsoft OAuth2
 func (ac *AuthController) MicrosoftCallBackHandler(c *gin.Context) {
 	// Gets the session
 	session := sessions.Default(c)
@@ -212,7 +213,7 @@ func (ac *AuthController) MicrosoftCallBackHandler(c *gin.Context) {
 	code := c.Query("code")
 	token, err := microsoftOAuthConfig.Exchange(context.Background(), code)
 	if err != nil {
-		slog.Error("Cannot convert the authorization code into a token")
+		slog.Error("Cannot convert the authorization code into a token", "Error", err)
 		c.JSON(http.StatusBadRequest, map[string]any{"msg": "Cannot convert the authorization code into a token"})
 		return
 	}
@@ -243,14 +244,19 @@ func (ac *AuthController) MicrosoftCallBackHandler(c *gin.Context) {
 	c.Redirect(http.StatusPermanentRedirect, "/")
 }
 
+// Checks if a session exists
 func (ac *AuthController) SessionHandler(c *gin.Context) {
 	session := sessions.Default(c)
 	sessionUserEmail := session.Get("userEmail")
 
+	slog.Info("Checking if a session exists", "User", sessionUserEmail)
+
 	if sessionUserEmail == nil {
+		slog.Info("Session not found")
 		c.JSON(http.StatusUnauthorized, map[string]any{"msg": "Session not found"})
 		return
 	}
 
+	slog.Info("Session found", "User", sessionUserEmail)
 	c.JSON(http.StatusOK, map[string]any{"msg": fmt.Sprintf("Session found: %v", sessionUserEmail), "userInfo": sessionUserEmail})
 }
