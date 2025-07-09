@@ -65,6 +65,7 @@
   "operationComplete": "Operação Concluída",
   "operationError": "Erro ao executar a operação de {operation}. Verifique a conexão com o servidor. {errorMessage}",
   "fillAllFieldsError": "Por favor, preencha todos os campos.",
+  "errorLoadingDatabases": "Erro carregando bases de dados: {errorMessage}",
   "selectOperationError": "Por favor, selecione uma operação.",
   "selectOneDatabaseError": "Por favor, selecione pelo menos um banco de dados.",
   "orLoginWithOAuth2": "Ou prossiga com:",

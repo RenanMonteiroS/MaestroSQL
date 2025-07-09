@@ -619,7 +619,7 @@
                 if (!isAuthResult) {
                     authModal.show()
                 } else {
-                    updateAuthStatus(true, isAuthResult.userInfo);
+                    updateAuthStatus(true, isAuthResult.data.user);
                 }
 
                 
@@ -661,22 +661,28 @@
                 const result = {"status": await response.status, "body": await response.json()};
 
                 if (!response.ok) {
-                    throw new Error(`Status: ${result.status}\nError: ${result.body.msg}`);
+                    throw new Error(`${result.body.errors.osiMsg}`);
                 }
+
+                document.getElementById('modalMfaToken').value = "";
+                document.getElementById('modalPassword').value = "";
+                document.getElementById('modalEmail').value = "";
+
+                console.log("Hey: ", document.getElementById('modalMfaToken').value)
                 
                 // Closes the modal
                 authModal.hide();
-                
+
                 // Shows a success message
                 setTimeout(() => {
-                    alert(`{{ call .T "userAuthenticatedSuccess" }}`.replace("{email}", result.body.userInfo.email));
+                    alert(`{{ call .T "userAuthenticatedSuccess" }}`.replace("{email}", result.body.data.user));
                 }, 300);
 
                 // Updates the authentication status in the auth card
-                updateAuthStatus(true, result.body.userInfo.email);
+                updateAuthStatus(true, result.body.data.user);
 
             } catch (err) {
-                console.error('Authentication error:', err);
+                console.error('Authentication error:', err.message);
                 alert(`{{ call .T "authenticationError" }}`.replace("{errorMessage}", err.message));
             } finally {
                 // Restores the button
@@ -789,11 +795,12 @@
                     if (!response.ok) {
                         if (response.status == 401) {
                             authModal.show();
+                            throw new Error(`${result.body.message}`);
                         }
-                        throw new Error(`Status: ${result.status}\nError: ${result.body.msg}`);
+                        throw new Error(`${result.body.errors.connect}`);
                     }
 
-                    console.log('Connection established:', result.body.msg);
+                    console.log(`Connection established: ${result.body.message}. Server: ${result.body.data.server}`);
                     
                 } catch (error) {
                     console.error('Error connecting:', error.message);
@@ -935,14 +942,16 @@
                 });
 
                 if (!response.ok) {
-                    data = await response.json();
+                    const data = await response.json();
                     if (response.status == 401) {
                         authModal.show();
+                        throw new Error(`${data.message}`);
                     }
-                    throw new Error(`Status: ${response.status}\nError: ${data.msg}`);
+                    throw new Error(`${data.errors.databases}`);
                 }
 
-                const databases = await response.json();
+                const data = await response.json();
+                const databases = data.data.databases;
                 
                 // Generate checkboxes dynamically based on backend response
                 let databasesHTML = '<div class="col-md-6">';
@@ -978,9 +987,8 @@
                             </button>`
                 
             } catch (error) {
-                alert(`Error loading databases: ${error.message}`);
-                console.error('Error loading databases:', error.message);
-                console.log('Error: ', error.message)
+                alert('{{ call .T "errorLoadingDatabases" }}'.replace("{errorMessage}", error.message));
+                console.error('{{ call .T "errorLoadingDatabases" }}'.replace("{errorMessage}", error.message)); 
                 databaseContainer.innerHTML = `
                     <div class="col-12">
                         <div class="alert alert-danger">
@@ -1128,8 +1136,9 @@
                 if (!response.ok) {
                     if (response.status == 401) {
                         authModal.show();
+                        throw new Error(`${result.body.message}`);
                     }
-                    throw new Error(`Status: ${result.status}\nError: ${result.body.msg}`);
+                    throw new Error(`${result.body.message}`);
                 }
 
                 console.log('Operation performed:', result);

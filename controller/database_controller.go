@@ -2,10 +2,13 @@ package controller
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/RenanMonteiroS/MaestroSQLWeb/model"
 	"github.com/RenanMonteiroS/MaestroSQLWeb/service"
+	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 )
 
@@ -26,21 +29,25 @@ func (dc *DatabaseController) ConnectDatabase(ctx *gin.Context) {
 	var connInfo model.ConnInfo
 	err := ctx.BindJSON(&connInfo)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, map[string]any{"msg": err.Error()})
+		slog.Error("Cannot bind JSON from request body", "Origin", ctx.ClientIP(), "User", sessions.Default(ctx).Get("userEmail"), "Error", err.Error())
+		ctx.JSON(http.StatusInternalServerError, model.APIResponse{Status: "error", Code: http.StatusInternalServerError, Message: "Cannot bind JSON from request body", Errors: map[string]any{"bindJson": err.Error()}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
 		return
 	}
 
-	conn, err := dc.service.ConnectDatabase(connInfo)
+	_, err = dc.service.ConnectDatabase(connInfo)
 	if err != nil {
 		if errors.Is(err, service.ErrPortAndInstanceEmpty) {
-			ctx.JSON(http.StatusBadRequest, map[string]any{"msg": err.Error()})
+			slog.Error("Cannot connect to database", "Origin", ctx.ClientIP(), "User", sessions.Default(ctx).Get("userEmail"), "Error", err.Error())
+			ctx.JSON(http.StatusBadRequest, model.APIResponse{Status: "error", Code: http.StatusBadRequest, Message: "Cannot connect to the server - Port and Instance empty", Errors: map[string]any{"connect": err.Error()}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
 		} else {
-			ctx.JSON(http.StatusInternalServerError, map[string]any{"msg": err.Error()})
+			slog.Error("Cannot connect to database", "Origin", ctx.ClientIP(), "User", sessions.Default(ctx).Get("userEmail"), "Error", err.Error())
+			ctx.JSON(http.StatusInternalServerError, model.APIResponse{Status: "error", Code: http.StatusInternalServerError, Message: "Cannot connect to the server", Errors: map[string]any{"connect": err.Error()}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
 		}
 		return
 	}
 
-	ctx.JSON(http.StatusOK, conn)
+	slog.Info("Connection done successfully", "Origin", ctx.ClientIP(), "User", sessions.Default(ctx).Get("userEmail"), "Host", connInfo.Host)
+	ctx.JSON(http.StatusOK, model.APIResponse{Status: "success", Code: http.StatusOK, Message: "Connection done successfully", Data: map[string]any{"server": connInfo.Host}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
 	return
 }
 
@@ -49,11 +56,13 @@ func (dc *DatabaseController) ConnectDatabase(ctx *gin.Context) {
 func (dc *DatabaseController) GetDatabases(ctx *gin.Context) {
 	databases, err := dc.service.GetDatabases()
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, map[string]any{"msg": err.Error()})
+		slog.Error("Cannot get databases", "Origin", ctx.ClientIP(), "User", sessions.Default(ctx).Get("userEmail"), "Error", err.Error())
+		ctx.JSON(http.StatusInternalServerError, model.APIResponse{Status: "error", Code: http.StatusInternalServerError, Message: "Cannot get databases", Errors: map[string]any{"databases": err.Error()}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, databases)
+	slog.Info("Databases collected successfully", "Origin", ctx.ClientIP(), "User", sessions.Default(ctx).Get("userEmail"))
+	ctx.JSON(http.StatusOK, model.APIResponse{Status: "success", Code: 200, Message: "Databases collected successfully", Data: map[string]any{"databases": databases}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
 	return
 }
 
@@ -68,15 +77,16 @@ func (dc *DatabaseController) BackupDatabase(ctx *gin.Context) {
 	var postData PostRequired
 
 	err := ctx.BindJSON(&postData)
-
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, err)
+		slog.Error("Cannot bind JSON from request body", "Origin", ctx.ClientIP(), "User", sessions.Default(ctx).Get("userEmail"), "Error", err.Error())
+		ctx.JSON(http.StatusInternalServerError, model.APIResponse{Status: "error", Code: http.StatusInternalServerError, Message: "Cannot bind JSON from request body", Errors: map[string]any{"bindJSON": err.Error()}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
 		return
 	}
 
 	databaseBackupList, errBackup := dc.service.BackupDatabase(postData.Databases, postData.Path)
 	if errBackup != nil && len(databaseBackupList) != 0 {
-		ctx.JSON(http.StatusInternalServerError, map[string]any{"msg": "Completed with errors.", "backupErrors": errBackup, "backupCompleted": databaseBackupList})
+		slog.Error("Backup completed with errors.", "Origin", ctx.ClientIP(), "User", sessions.Default(ctx).Get("userEmail"), "Error", errBackup)
+		ctx.JSON(http.StatusInternalServerError, model.APIResponse{Status: "error", Code: http.StatusInternalServerError, Message: "Backup completed with errors.", Data: map[string]any{"backupErrors": errBackup, "backupCompleted": databaseBackupList}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
 		return
 	} else if errBackup != nil && len(databaseBackupList) == 0 {
 		var errStringList []string
@@ -84,11 +94,13 @@ func (dc *DatabaseController) BackupDatabase(ctx *gin.Context) {
 			errStringList = append(errStringList, value.Error())
 		}
 
-		ctx.JSON(http.StatusInternalServerError, map[string]any{"msg": "No backup was completed.", "backupErrors": errStringList})
+		slog.Error("No backup was completed.", "Origin", ctx.ClientIP(), "User", sessions.Default(ctx).Get("userEmail"), "Error", errBackup)
+		ctx.JSON(http.StatusInternalServerError, model.APIResponse{Status: "error", Code: http.StatusInternalServerError, Message: "No backup was completed.", Data: map[string]any{"backupErrors": errBackup}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, databaseBackupList)
+	slog.Info("Backup done successfully.", "Origin", ctx.ClientIP(), "User", sessions.Default(ctx).Get("userEmail"))
+	ctx.JSON(http.StatusOK, model.APIResponse{Status: "success", Code: http.StatusOK, Message: "Backup done successfully.", Data: map[string]any{"databases": databaseBackupList, "backupPath": postData.Path}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
 	return
 }
 
@@ -99,24 +111,29 @@ func (dc *DatabaseController) RestoreDatabase(ctx *gin.Context) {
 
 	err := ctx.BindJSON(&backupFiles)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, err)
+		slog.Error("Cannot bind JSON from request body", "Origin", ctx.ClientIP(), "User", sessions.Default(ctx).Get("userEmail"), "Error", err.Error())
+		ctx.JSON(http.StatusInternalServerError, model.APIResponse{Status: "error", Code: http.StatusInternalServerError, Message: "Cannot bind JSON from request body", Errors: map[string]any{"bindJSON": err.Error()}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
 		return
 	}
 
 	restoredDatabases, errRestore, err := dc.service.RestoreDatabase(backupFiles.Path)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, map[string]any{"msg": "No restore was completed.", "restoreErrors": err.Error()})
+		slog.Error("No restore was completed", "Origin", ctx.ClientIP(), "User", sessions.Default(ctx).Get("userEmail"), "Error", err.Error())
+		ctx.JSON(http.StatusInternalServerError, model.APIResponse{Status: "error", Code: http.StatusInternalServerError, Message: "Restore operation error", Errors: map[string]any{"restore": err.Error()}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
 		return
 	}
 
 	if errRestore != nil && len(restoredDatabases) > 0 {
-		ctx.JSON(http.StatusInternalServerError, map[string]any{"msg": "Completed with errors.", "restoreErrors": errRestore, "restoreCompleted": restoredDatabases})
+		slog.Error("Restore operation completed with errors", "Origin", ctx.ClientIP(), "User", sessions.Default(ctx).Get("userEmail"), "Error", errRestore)
+		ctx.JSON(http.StatusInternalServerError, model.APIResponse{Status: "error", Code: http.StatusInternalServerError, Message: "Restore operation completed with errors", Data: map[string]any{"restoreErrors": errRestore, "restoreDone": restoredDatabases}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
 		return
 	} else if errRestore != nil && len(restoredDatabases) == 0 {
-		ctx.JSON(http.StatusInternalServerError, map[string]any{"msg": "No restore was completed.", "restoreErrors": errRestore})
+		slog.Error("No restore was completed.", "Origin", ctx.ClientIP(), "User", sessions.Default(ctx).Get("userEmail"), "Error", errRestore)
+		ctx.JSON(http.StatusInternalServerError, model.APIResponse{Status: "error", Code: http.StatusInternalServerError, Message: "No restore was completed.", Errors: map[string]any{"restoreErrors": errRestore}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
 		return
 	}
 
-	ctx.JSON(http.StatusOK, restoredDatabases)
+	slog.Info("Restore done successfully.", "Origin", ctx.ClientIP(), "User", sessions.Default(ctx).Get("userEmail"))
+	ctx.JSON(http.StatusOK, model.APIResponse{Status: "success", Code: http.StatusOK, Message: "Restore done successfully.", Data: map[string]any{"databases": restoredDatabases}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
 	return
 }

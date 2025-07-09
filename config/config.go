@@ -9,7 +9,7 @@ const (
 	AppCertificateUsage            = false                    // If the HTTPs protocol will be used or not via certificate/key. Values: true/false
 	AppCertificateLocation         = ""                       // The location of the .crt/.pem file
 	AppCertificateKeyLocation      = ""                       // The location of the .key/.pem file
-	AppCSRFTokenUsage              = false                    // If the app will use CSRF tokens, to avoid CSRF attacks. Values: true/false
+	AppCSRFTokenUsage              = true                     // If the app will use CSRF tokens, to avoid CSRF attacks. Values: true/false
 	AppCSRFTokenSecret             = "my-supersecret-token"   // A secret for the token used for CSRF Token verification
 	CORSUsage                      = true                     // If the app will use CORS. If true, all requests will pass through CORS verification. Values: true/false)
 	GoogleOAuth2RedirectURL        = ""                       // The redirect URL. Usually it will be https://yourdomain.com/auth/google/callback. It need to be configured in your Google OAuth2 Client

@@ -3,7 +3,6 @@ package db
 import (
 	"database/sql"
 	"fmt"
-	"log"
 	"log/slog"
 	"net/url"
 	"strconv"
@@ -46,7 +45,6 @@ func ConnDb(connInfo model.ConnInfo) (*sql.DB, error) {
 
 	db, err := sql.Open("sqlserver", u.String())
 	if err != nil {
-		log.Println("Error: ", err)
 		return nil, err
 	}
 
@@ -55,8 +53,6 @@ func ConnDb(connInfo model.ConnInfo) (*sql.DB, error) {
 	if connInfo.MaxConnections != 0 {
 		db.SetMaxOpenConns(connInfo.MaxConnections)
 	}
-
-	slog.Info("Database connected sucessfuly")
 
 	// Checks the database connection
 	err = db.Ping()

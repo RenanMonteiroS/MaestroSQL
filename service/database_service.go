@@ -121,7 +121,7 @@ func (ds *DatabaseService) BackupDatabase(backupDbList []model.Database, backupP
 		return backupDbDoneList, errBackup
 	}
 
-	slog.Info("Backup completed sucessfully: ", "Completed backups: ", backupDbDoneList)
+	slog.Info("Backup completed sucessfully", "Completed backups: ", backupDbDoneList)
 	return backupDbDoneList, nil
 }
 

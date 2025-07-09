@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/RenanMonteiroS/MaestroSQLWeb/config"
+	"github.com/RenanMonteiroS/MaestroSQLWeb/model"
 	"github.com/RenanMonteiroS/MaestroSQLWeb/service"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
@@ -52,28 +53,31 @@ var microsoftOAuthConfig = &oauth2.Config{
 }
 
 // Handles the user login. Allowed methods: OSI, Microsoft OAuth2 and Google OAuth2
-func (ac *AuthController) LoginHandler(c *gin.Context) {
+func (ac *AuthController) LoginHandler(ctx *gin.Context) {
 	var url string
 
-	authMethod := c.Query("method")
+	authMethod := ctx.Query("method")
 	if authMethod == "google" {
 		state := ac.service.GenerateStateOAuthCookie()
-		session := sessions.Default(c)
+		session := sessions.Default(ctx)
 		session.Set("oauth_state", state)
 		session.Save()
+		slog.Info("oauth_state set into the session", "Origin", ctx.ClientIP())
 
 		url = googleOAuthConfig.AuthCodeURL(state)
 	} else if authMethod == "microsoft" {
 		state := ac.service.GenerateStateOAuthCookie()
 
-		session := sessions.Default(c)
+		session := sessions.Default(ctx)
 		session.Set("oauth_state", state)
 		session.Save()
+		slog.Info("oauth_state set into the session", "Origin", ctx.ClientIP())
 
 		url = microsoftOAuthConfig.AuthCodeURL(state)
 	} else if authMethod == "osi" {
-		if c.Request.Method != "POST" {
-			c.JSON(http.StatusMethodNotAllowed, gin.H{"msg": "OSI login requires POST"})
+		if ctx.Request.Method != "POST" {
+			slog.Error("OSI login requires a POST request", "Origin", ctx.ClientIP(), "Error", "OSI login requires a POST request")
+			ctx.JSON(http.StatusMethodNotAllowed, model.APIResponse{Status: "error", Code: http.StatusMethodNotAllowed, Message: "OSI login requires a POST request", Errors: map[string]any{"methodNotAllowed": ctx.Request.Method}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
 			return
 		}
 		url = config.AuthenticatorURL + "/login"
@@ -89,18 +93,18 @@ func (ac *AuthController) LoginHandler(c *gin.Context) {
 			} `json:"userInfo,omitempty"`
 		}
 
-		body, err := io.ReadAll(c.Request.Body)
+		body, err := io.ReadAll(ctx.Request.Body)
 		if err != nil {
-			slog.Error("Error reading request body", "Error", err)
-			c.JSON(http.StatusInternalServerError, map[string]any{"msg": fmt.Sprintf("Error binding JSON %v", err)})
+			slog.Error("Cannot bind JSON from request body", "Origin", ctx.ClientIP(), "Error", err.Error())
+			ctx.JSON(http.StatusInternalServerError, model.APIResponse{Status: "error", Code: http.StatusInternalServerError, Message: "Cannot bind JSON from request body", Errors: map[string]any{"bindJson": err.Error()}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
 			return
 		}
 
 		client := http.Client{}
 		req, err := http.NewRequest("POST", url, bytes.NewReader(body))
 		if err != nil {
-			slog.Error("Error creating request", "URL", url, "Error", err)
-			c.JSON(http.StatusInternalServerError, map[string]any{"msg": fmt.Sprintf("Error binding JSON %v", err)})
+			slog.Error("Error creating request", "Origin", ctx.ClientIP(), "URL", url, "Error", err.Error())
+			ctx.JSON(http.StatusInternalServerError, model.APIResponse{Status: "error", Code: http.StatusInternalServerError, Message: "Error creating request", Errors: map[string]any{"request": err.Error(), "url": url}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
 			return
 		}
 		header := http.Header{"Content-Type": {"application/json"}}
@@ -108,8 +112,8 @@ func (ac *AuthController) LoginHandler(c *gin.Context) {
 
 		res, err := client.Do(req)
 		if err != nil {
-			slog.Error("Error making request", "URL", url, "Error", err)
-			c.JSON(http.StatusInternalServerError, map[string]any{"msg": fmt.Sprintf("Error binding JSON %v", err)})
+			slog.Error("Error making request", "Origin", ctx.ClientIP(), "URL", url, "Error", err.Error())
+			ctx.JSON(http.StatusInternalServerError, model.APIResponse{Status: "error", Code: http.StatusInternalServerError, Message: "Error making request", Errors: map[string]any{"request": err.Error(), "url": url}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
 			return
 		}
 		defer res.Body.Close()
@@ -118,110 +122,124 @@ func (ac *AuthController) LoginHandler(c *gin.Context) {
 
 		err = json.NewDecoder(res.Body).Decode(&osiRes)
 		if err != nil {
-			slog.Error("Cannot decode request body", "URL", url, "Error", err)
-			c.JSON(http.StatusInternalServerError, map[string]any{"msg": fmt.Sprintf("Cannot decode request body %v", err)})
+			slog.Error("Cannot bind JSON from request body", "Origin", ctx.ClientIP(), "Error", err.Error())
+			ctx.JSON(http.StatusInternalServerError, model.APIResponse{Status: "error", Code: http.StatusInternalServerError, Message: "Cannot bind JSON from request body", Errors: map[string]any{"bindJson": err.Error()}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
 			return
 		}
 
 		if res.StatusCode != 200 {
-			slog.Error("Request status is not OK", "URL", url, "Error", osiRes.Msg)
-			c.JSON(http.StatusBadRequest, map[string]any{"msg": fmt.Sprintf("Request status is not OK %v", osiRes.Msg)})
+			slog.Error("OSI Response is not OK", "Origin", ctx.ClientIP(), "Error", osiRes.Msg)
+			ctx.JSON(http.StatusBadRequest, model.APIResponse{Status: "error", Code: http.StatusBadRequest, Message: "OSI Response is not OK", Errors: map[string]any{"osiMsg": osiRes.Msg}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
 			return
 		}
 
-		session := sessions.Default(c)
+		session := sessions.Default(ctx)
 		session.Set("userEmail", osiRes.UserInfo.Email)
 		session.Save()
 
-		slog.Info("Login done successfully", "User", osiRes.UserInfo.Email)
+		slog.Info("Login done successfully", "Origin", ctx.ClientIP(), "User", osiRes.UserInfo.Email)
 
-		c.JSON(http.StatusOK, osiRes)
+		ctx.JSON(http.StatusOK, model.APIResponse{Status: "success", Code: http.StatusOK, Message: "Login done successfully", Data: map[string]any{"user": osiRes.UserInfo.Email}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
 		return
 
 	} else {
-		c.JSON(http.StatusNotFound, map[string]any{"msg": "Login method not allowed"})
+		slog.Error("Login method not allowed", "Origin", ctx.ClientIP(), "URL", url)
+		if strings.Contains(ctx.GetHeader("Accept"), "application/json") {
+			ctx.JSON(http.StatusNotFound, model.APIResponse{Status: "error", Code: http.StatusInternalServerError, Message: "Login method not allowed", Errors: map[string]any{"loginMethod": "Login method not allowed"}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
+		}
+		ctx.Redirect(http.StatusNotFound, "/404")
 		return
 	}
 
-	c.Redirect(http.StatusTemporaryRedirect, url)
+	slog.Info("Redirecting to OAuth2 callback URL", "Origin", ctx.ClientIP(), "URL", url)
+	ctx.Redirect(http.StatusTemporaryRedirect, url)
 }
 
 // Deletes the user session
-func (ac *AuthController) LogoutHandler(c *gin.Context) {
-	session := sessions.Default(c)
+func (ac *AuthController) LogoutHandler(ctx *gin.Context) {
+	session := sessions.Default(ctx)
 
-	session.Delete("userEmail")
+	user := session.Get("userEmail")
+	oauthState := session.Get("oauth_state")
+
+	if user != nil {
+		slog.Info("Logout done successfully", "User", user)
+		session.Delete("userEmail")
+	}
+
+	if oauthState != nil {
+		session.Delete("oauth_state")
+	}
 
 	session.Save()
-	c.JSON(http.StatusOK, map[string]any{"msg": "Logout done successfully"})
+
+	ctx.JSON(http.StatusOK, model.APIResponse{Status: "success", Code: http.StatusOK, Message: "Logout done successfully", Data: map[string]any{"user": user}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
+	return
 }
 
 // Receives the callback from Google OAuth2
-func (ac *AuthController) GoogleCallBackHandler(c *gin.Context) {
+func (ac *AuthController) GoogleCallBackHandler(ctx *gin.Context) {
 	// Gets the session
-	session := sessions.Default(c)
+	session := sessions.Default(ctx)
 
 	// If the session passed through the callback route is not valid, returns an error message. Prevents from CSRF attacks
-	if c.Query("state") != session.Get("oauth_state") {
-		slog.Error("Invalid OAuth2 state")
-		c.JSON(http.StatusBadRequest, map[string]any{"msg": "Invalid OAuth2 state"})
+	if ctx.Query("state") != session.Get("oauth_state") {
+		slog.Error("Invalid OAuth2 state", "Origin", ctx.ClientIP(), "URL Query State", ctx.Query("state"), "Session OAuth2 state", session.Get("oauth_state"))
+		ctx.JSON(http.StatusBadRequest, model.APIResponse{Status: "error", Code: http.StatusBadRequest, Message: "Invalid OAuth2 state", Errors: map[string]any{"oauth2": "Invalid OAuth2 state"}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
 		return
 	}
 
 	// Gets the authorization code passed through the callback route, and convert it into an authorization token. It needs to be validated to prevent from CSRF attacks.
-	code := c.Query("code")
+	code := ctx.Query("code")
 	token, err := googleOAuthConfig.Exchange(context.Background(), code)
 	if err != nil {
-		slog.Error("Cannot convert the authorization code into a token", "Error", err)
-		c.JSON(http.StatusBadRequest, map[string]any{"msg": fmt.Sprintf("Cannot convert the authorization code into a token. Error: %v", err)})
+		slog.Error("Cannot convert the authorization code into a token", "Origin", ctx.ClientIP(), "Error", err.Error())
+		ctx.JSON(http.StatusBadRequest, model.APIResponse{Status: "error", Code: http.StatusBadRequest, Message: "Cannot convert the authorization code into a token.", Errors: map[string]any{"exchange": err.Error()}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
 		return
 	}
 
+	slog.Info("Getting OAuth2 user information", "Origin", ctx.ClientIP())
 	userInfo, err := ac.service.GetOAuth2UserInfo(token.AccessToken, "google")
 	if err != nil {
-		slog.Error("Cannot get user information", "Error", err)
-		c.JSON(http.StatusBadRequest, map[string]any{"msg": fmt.Sprintf("Cannot get user information. Error: %v", err)})
+		slog.Error("Cannot get user information", "Origin", ctx.ClientIP(), "Error", err.Error())
+		ctx.JSON(http.StatusBadRequest, model.APIResponse{Status: "error", Code: http.StatusBadRequest, Message: "Cannot get user information", Errors: map[string]any{"userInfo": err.Error()}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
 		return
 	}
 
 	session.Set("userEmail", userInfo.GoogleOAuth2User.Email)
-	err = session.Save()
-	if err != nil {
-		slog.Error("Failed to save session", "User", userInfo.GoogleOAuth2User.Email)
-		c.JSON(http.StatusInternalServerError, map[string]any{"msg": "Failed to save session"})
-	}
-	c.SetCookie("userEmail", userInfo.GoogleOAuth2User.Email, 3600, "/", "", false, false)
+	session.Save()
 
-	slog.Info("Authentication done successfully", "User", userInfo.GoogleOAuth2User.Email)
+	slog.Info("Authentication done successfully", "Origin", ctx.ClientIP(), "User", userInfo.GoogleOAuth2User.Email)
 
-	c.Redirect(http.StatusPermanentRedirect, "/")
+	ctx.Redirect(http.StatusPermanentRedirect, "/")
 }
 
 // Receives the callback from Microsoft OAuth2
-func (ac *AuthController) MicrosoftCallBackHandler(c *gin.Context) {
+func (ac *AuthController) MicrosoftCallBackHandler(ctx *gin.Context) {
 	// Gets the session
-	session := sessions.Default(c)
+	session := sessions.Default(ctx)
 
 	// If the session passed through the callback route is not valid, returns an error message. Prevents from CSRF attacks
-	if c.Query("state") != session.Get("oauth_state") {
-		slog.Error("Invalid OAuth2 state")
-		c.JSON(http.StatusBadRequest, map[string]any{"msg": "Invalid OAuth2 state"})
+	if ctx.Query("state") != session.Get("oauth_state") {
+		slog.Error("Invalid OAuth2 state", "Origin", ctx.ClientIP(), "URL Query State", ctx.Query("state"), "Session OAuth2 state", session.Get("oauth_state"))
+		ctx.JSON(http.StatusBadRequest, model.APIResponse{Status: "error", Code: http.StatusBadRequest, Message: "Invalid OAuth2 state", Errors: map[string]any{"oauth2": "Invalid OAuth2 state"}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
 		return
 	}
 
 	// Gets the authorization code passed through the callback route, and convert it into an authorization token. It needs to be validated to prevent from CSRF attacks.
-	code := c.Query("code")
+	code := ctx.Query("code")
 	token, err := microsoftOAuthConfig.Exchange(context.Background(), code)
 	if err != nil {
-		slog.Error("Cannot convert the authorization code into a token", "Error", err)
-		c.JSON(http.StatusBadRequest, map[string]any{"msg": "Cannot convert the authorization code into a token"})
+		slog.Error("Cannot convert the authorization code into a token", "Origin", ctx.ClientIP(), "Error", err.Error())
+		ctx.JSON(http.StatusBadRequest, model.APIResponse{Status: "error", Code: http.StatusBadRequest, Message: "Cannot convert the authorization code into a token.", Errors: map[string]any{"exchange": err.Error()}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
 		return
 	}
 
+	slog.Info("Getting OAuth2 user information", "Origin", ctx.ClientIP())
 	userInfo, err := ac.service.GetOAuth2UserInfo(token.AccessToken, "microsoft")
 	if err != nil {
-		slog.Error("Cannot get user information", "Error", err)
-		c.JSON(http.StatusBadRequest, map[string]any{"msg": fmt.Sprintf("Cannot get user information %v:", err)})
+		slog.Error("Cannot get user information", "Origin", ctx.ClientIP(), "Error", err.Error())
+		ctx.JSON(http.StatusBadRequest, model.APIResponse{Status: "error", Code: http.StatusBadRequest, Message: "Cannot get user information", Errors: map[string]any{"userInfo": err.Error()}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
 		return
 	}
 
@@ -232,31 +250,27 @@ func (ac *AuthController) MicrosoftCallBackHandler(c *gin.Context) {
 	}
 
 	session.Set("userEmail", *userInfo.MicrosoftOAuth2User.Mail)
-	err = session.Save()
-	if err != nil {
-		slog.Error("Failed to save session", "User", &userInfo.MicrosoftOAuth2User.Mail)
-		c.JSON(http.StatusInternalServerError, map[string]any{"msg": "Failed to save session"})
-	}
-	c.SetCookie("userEmail", *userInfo.MicrosoftOAuth2User.Mail, 3600, "/", "", false, false)
+	session.Save()
 
-	slog.Info("Authentication done successfully", "User", *userInfo.MicrosoftOAuth2User.Mail)
+	slog.Info("Authentication done successfully", "Origin", ctx.ClientIP(), "User", userInfo.GoogleOAuth2User.Email)
 
-	c.Redirect(http.StatusPermanentRedirect, "/")
+	ctx.Redirect(http.StatusPermanentRedirect, "/")
 }
 
 // Checks if a session exists
-func (ac *AuthController) SessionHandler(c *gin.Context) {
-	session := sessions.Default(c)
+func (ac *AuthController) SessionHandler(ctx *gin.Context) {
+	session := sessions.Default(ctx)
 	sessionUserEmail := session.Get("userEmail")
 
-	slog.Info("Checking if a session exists", "User", sessionUserEmail)
+	slog.Info("Checking if a session exists", "Origin", ctx.ClientIP(), "User", sessionUserEmail)
 
 	if sessionUserEmail == nil {
-		slog.Info("Session not found")
-		c.JSON(http.StatusUnauthorized, map[string]any{"msg": "Session not found"})
+		slog.Info("None session was found", "Origin", ctx.ClientIP())
+		ctx.JSON(http.StatusUnauthorized, model.APIResponse{Status: "error", Code: http.StatusUnauthorized, Message: "None session was found", Errors: map[string]any{"session": "None session was found"}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
 		return
 	}
 
-	slog.Info("Session found", "User", sessionUserEmail)
-	c.JSON(http.StatusOK, map[string]any{"msg": fmt.Sprintf("Session found: %v", sessionUserEmail), "userInfo": sessionUserEmail})
+	slog.Info("Session found", "Origin", ctx.ClientIP(), "User", sessionUserEmail)
+	ctx.JSON(http.StatusOK, model.APIResponse{Status: "success", Code: http.StatusOK, Message: "Session found", Data: map[string]any{"user": sessionUserEmail}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
+
 }
