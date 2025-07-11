@@ -79,5 +79,15 @@
   "notFoundMaestroTip": "Dica do Maestro:",
   "notFoundPreviousPage": "Voltar",
   "notFoundHomePage": "Página Inicial",
-  "notFoundPageTitle": "Página não encontrada"
+  "notFoundPageTitle": "Página não encontrada",
+  "resultModalSuccess": "Completo com sucesso",
+  "resultModalErrorParagraph": "Erro",
+  "resultModalOperationSummary": "Resumo da operação de {operation}",
+  "resultModalErrorsEncountered":"Erros encontrados",
+  "resultModalBackupPath": "Caminho do backup",
+  "resultModalResultMessageSuccess": "{operation} completo com sucesso.",
+  "resultModalResultMessageCompletedWithErrors": "{operation} completo com erros.",
+  "resultModalResultMessageError": "{operation} sem sucesso.",
+  "resultModalCloseButton": "Fechar",
+  "resultModalTotalTime": "Tempo Total"
 }

@@ -80,5 +80,15 @@
   "notFoundMaestroTip": "Maestro's tip",
   "notFoundPreviousPage": "Previous",
   "notFoundHomePage": "Home",
-  "notFoundPageTitle": "Page not found"
+  "notFoundPageTitle": "Page not found",
+  "resultModalSuccess": "Completed Successfully",
+  "resultModalErrorParagraph": "Error",
+  "resultModalOperationSummary": "{operation} Operation Summary",
+  "resultModalErrorsEncountered":"Errors Encountered",
+  "resultModalBackupPath": "Backup Path",
+  "resultModalResultMessageSuccess": "{operation} completed with success.",
+  "resultModalResultMessageCompletedWithErrors": "{operation} completed with errors.",
+  "resultModalResultMessageError": "{operation} operation error.",
+  "resultModalCloseButton": "Close",
+  "resultModalTotalTime": "Total Time"
 }

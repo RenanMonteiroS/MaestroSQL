@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/RenanMonteiroS/MaestroSQLWeb/model"
 	"github.com/RenanMonteiroS/MaestroSQLWeb/repository"
@@ -105,46 +106,49 @@ func (ds *DatabaseService) GetDatabases() ([]model.Database, error) {
 	return dbList, nil
 }
 
-// Starts the backup, for each database selected, storing into the backup path choosed.
+// Starts the backup, for each database selected, storing into the backup path chosen.
 // Before it calls the repository.BackupDatabase() function, it checks if the connection is set.
-func (ds *DatabaseService) BackupDatabase(backupDbList []model.Database, backupPath string) ([]model.Database, []error) {
+func (ds *DatabaseService) BackupDatabase(backupDbList []model.Database, backupPath string) ([]model.Database, []model.SqlErr, error, string) {
+	t0 := time.Now()
 	err := ds.CheckDbConn()
 	if err != nil {
 		slog.Error("Cannot connect to database: ", "Error: ", err)
-		return []model.Database{}, []error{err}
+		return []model.Database{}, []model.SqlErr{}, fmt.Errorf("Connection failed. Try to /connect.\nDetails: %v", err.Error()), ""
 	}
 
-	slog.Info("Starting backup...", "Databases: ", backupDbList, "Backup path: ", backupPath)
+	slog.Info("Starting backup...", "Databases", backupDbList, "Backup path", backupPath)
 	backupDbDoneList, errBackup := ds.repository.BackupDatabase(backupDbList, backupPath)
 	if errBackup != nil {
-		slog.Warn("Backup completed with errors: ", "Completed backups: ", backupDbDoneList, "Errors: ", errBackup)
-		return backupDbDoneList, errBackup
+		slog.Warn("Backup completed with errors", "Completed backups", backupDbDoneList, "Errors", errBackup)
+		totalTime := fmt.Sprintf("%dh%dm%ds", int(time.Since(t0).Hours()), int(time.Since(t0).Minutes())%60, int(time.Since(t0).Seconds())%60)
+		return backupDbDoneList, errBackup, nil, totalTime
 	}
 
-	slog.Info("Backup completed sucessfully", "Completed backups: ", backupDbDoneList)
-	return backupDbDoneList, nil
+	slog.Info("Backup completed sucessfully", "Completed backups", backupDbDoneList)
+	totalTime := fmt.Sprintf("%dh%dm%ds", int(time.Since(t0).Hours()), int(time.Since(t0).Minutes())%60, int(time.Since(t0).Seconds())%60)
+	return backupDbDoneList, nil, nil, totalTime
 }
 
 // Starts the backup, for each database selected, storing into the backup path choosed.
 // Before it calls the repository.RestoreDatabase() function, it checks if the connection is set, gets the backup file data, mounts the database object and gets the default data files path
-func (ds *DatabaseService) RestoreDatabase(backupFilesPath string) ([]model.RestoreDb, []error, error) {
+func (ds *DatabaseService) RestoreDatabase(backupFilesPath string) ([]model.RestoreDb, []model.SqlErr, error, string) {
+	t0 := time.Now()
 	err := ds.CheckDbConn()
 	if err != nil {
 		slog.Error("Cannot connect to database: ", "Error: ", err)
-		return []model.RestoreDb{}, []error{}, errors.New("Connection was not set. Try to call /connect with the connection parameters")
+		return []model.RestoreDb{}, []model.SqlErr{}, fmt.Errorf("Connection failed. Try to /connect.\nDetails: %v", err), ""
 	}
 
 	var backupsFullPathList []string
 
 	var database model.RestoreDb
 	var restoreDatabaseList []model.RestoreDb
-	var databaseFile model.DatabaseFile
 
 	// Gets the dir where the backup files are allocated
 	dir, err := os.ReadDir(backupFilesPath)
 	if err != nil {
 		slog.Error("Cannot get the directory: ", "Error: ", err)
-		return nil, nil, err
+		return nil, nil, err, ""
 	}
 
 	// For each file with ".bak" extension, inserts the file into a list
@@ -161,7 +165,7 @@ func (ds *DatabaseService) RestoreDatabase(backupFilesPath string) ([]model.Rest
 	backupFilesData, err := ds.repository.GetBackupFilesData(backupsFullPathList)
 	if err != nil {
 		slog.Warn("Cannot get backup files data (RESTORE FILELISTONLY): ", "Error: ", err)
-		return nil, nil, err
+		return nil, nil, err, ""
 	}
 
 	for _, backupFileData := range backupFilesData {
@@ -169,6 +173,7 @@ func (ds *DatabaseService) RestoreDatabase(backupFilesPath string) ([]model.Rest
 		database.BackupPath = backupFileData.BackupFilePath
 
 		for _, backupFileInfo := range backupFileData.BackupFileInfo {
+			var databaseFile model.DatabaseFile
 			if backupFileInfo.FileType == "D" {
 				databaseFile.FileType = "ROWS"
 				databaseFile.LogicalName = backupFileInfo.LogicalName
@@ -201,17 +206,18 @@ func (ds *DatabaseService) RestoreDatabase(backupFilesPath string) ([]model.Rest
 	dataPath, logPath, err := ds.repository.GetDefaultFilesPath()
 	if err != nil {
 		slog.Error("Cannot get default files path: ", "Error: ", err)
-		return nil, nil, err
+		return nil, nil, err, ""
 	}
 
 	slog.Info("Starting restore...", "Databases: ", restoreDatabaseList, "Data path: ", dataPath, "Log path:", "Log path")
 	restoredDatabases, errRestoreList := ds.repository.RestoreDatabase(restoreDatabaseList, dataPath, logPath)
+	totalTime := fmt.Sprintf("%dh%dm%ds", int(time.Since(t0).Hours()), int(time.Since(t0).Minutes())%60, int(time.Since(t0).Seconds())%60)
 	if errRestoreList != nil {
 		slog.Warn("Restore completed with errors: ", "Completed restores: ", restoredDatabases, "Errors: ", errRestoreList)
-		return restoredDatabases, errRestoreList, nil
+		return restoredDatabases, errRestoreList, nil, totalTime
 	}
 
 	slog.Info("Restore completed sucessfully: ", "Completed restores: ", restoredDatabases)
-	return restoredDatabases, nil, nil
+	return restoredDatabases, nil, nil, totalTime
 
 }

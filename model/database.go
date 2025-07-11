@@ -2,16 +2,16 @@ package model
 
 // Database is a set of id, name, and the database files of some SQL Server database. Its populated by JSON, via HTTP request. Expects an id, name and files in the request body.
 type Database struct {
-	ID    string         `json:"id"`
+	ID    string         `json:"id,omitempty"`
 	Name  string         `json:"name" binding:"required"`
-	Files []DatabaseFile `json:"files"`
+	Files []DatabaseFile `json:"files,omitempty"`
 }
 
 // DatabaseFile is a set of a LogicalName, PhysicalName and a FileType (data or log). It refers to a SQL Server database file.
 type DatabaseFile struct {
-	LogicalName  string
-	PhysicalName string
-	FileType     string
+	LogicalName  string `json:"logicalName"`
+	PhysicalName string `json:"physicalName"`
+	FileType     string `json:"fileType"`
 }
 
 // MergedDatabaseFileInfo is a set of DatabaseId, DatabaseName, LogicalName, PhysicalName, and FileType. Typically, when SELECT is executed on repository.GetDatabases(),
@@ -67,6 +67,6 @@ type BackupFiles struct {
 
 // RestoreDb is a set of BackupPath and Database. Its used to return the RESTORE DATABASE completed.
 type RestoreDb struct {
-	BackupPath string
-	Database   Database
+	BackupPath string   `json:"backupPath"`
+	Database   Database `json:"database"`
 }

@@ -89,24 +89,23 @@ func (dr *DatabaseRepository) GetDatabases() ([]model.MergedDatabaseFileInfo, er
 
 // Performs a BACKUP DATABASE statement, for each database selected, storing into the backup path choosed.
 // The BACKUP DATABASE statements are executed in goroutines, which makes them concurrent
-func (dr *DatabaseRepository) BackupDatabase(backupDbList []model.Database, backupPath string) ([]model.Database, []error) {
+func (dr *DatabaseRepository) BackupDatabase(backupDbList []model.Database, backupPath string) ([]model.Database, []model.SqlErr) {
 	t0 := time.Now()
-
-	if dr.connection == nil {
-		return []model.Database{}, []error{errors.New("Connection was not set. Try to call /connect with the connection parameters")}
+	type BackupResult struct {
+		Database model.Database
+		Error    error
+		Success  bool
 	}
 
 	var wg sync.WaitGroup
-	ch := make(chan model.Database, len(backupDbList))
-	chError := make(chan error, len(backupDbList))
+	resultCh := make(chan BackupResult, len(backupDbList))
 
 	var dbDoneList []model.Database
-	var errorsList []error
+	var errorsList []model.SqlErr
 
 	backupLogFile, err := os.OpenFile("backup.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		slog.Error("Cannot open backup log file: ", "Error: ", err)
-		return nil, []error{err}
 	}
 	defer backupLogFile.Close()
 
@@ -129,19 +128,19 @@ func (dr *DatabaseRepository) BackupDatabase(backupDbList []model.Database, back
 			stmt, err := dr.connection.Prepare(query)
 			if err != nil {
 				backupLogger.Error("Error preparing BACKUP query: ", "Query: ", query, "Error: ", err)
-				chError <- err
+				resultCh <- BackupResult{db, err, false}
 				return
 			}
 
 			_, err = stmt.ExecContext(ctx, sql.Named("Path", path))
 			if err != nil {
 				backupLogger.Error("Error executing BACKUP query: ", "Query: ", query, "Error: ", err)
-				chError <- err
+				resultCh <- BackupResult{db, err, false}
 				return
 			}
 
 			backupLogger.Info(fmt.Sprintf("Backup related to [%v] database completed", db.Name), "Database:", db.Name)
-			ch <- db
+			resultCh <- BackupResult{db, nil, true}
 
 			return
 		}(&wg)
@@ -150,16 +149,23 @@ func (dr *DatabaseRepository) BackupDatabase(backupDbList []model.Database, back
 
 	go func() {
 		wg.Wait()
-		close(ch)
-		close(chError)
+		close(resultCh)
 	}()
 
-	for db := range ch {
-		dbDoneList = append(dbDoneList, db)
+	results := make([]BackupResult, len(backupDbList))
+	for result := range resultCh {
+		results = append(results, result)
 	}
 
-	for err := range chError {
-		errorsList = append(errorsList, err)
+	for _, result := range results {
+		if result.Success {
+			dbDoneList = append(dbDoneList, result.Database)
+		} else {
+			sqlErr := model.NewSqlErr(result.Database.Name, result.Error)
+			if sqlErr != nil {
+				errorsList = append(errorsList, *sqlErr)
+			}
+		}
 	}
 
 	backupLogger.Info(fmt.Sprintf("Total Time: %v", time.Since(t0)))
@@ -173,20 +179,24 @@ func (dr *DatabaseRepository) BackupDatabase(backupDbList []model.Database, back
 // Performs a RESTORE DATABASE statement, for all backup files inside the backup path.
 // The database name is based on the backup file name, as well as the name of the database files (.mdf, .ldf, .ndf)
 // The RESTORE DATABASE statements are executed in goroutines, which makes them concurrent
-func (dr *DatabaseRepository) RestoreDatabase(restoreDbList []model.RestoreDb, dataPath string, logPath string) ([]model.RestoreDb, []error) {
+func (dr *DatabaseRepository) RestoreDatabase(restoreDbList []model.RestoreDb, dataPath string, logPath string) ([]model.RestoreDb, []model.SqlErr) {
 	t0 := time.Now()
 
 	var restoreDoneDbList []model.RestoreDb
-	var errorsList []error
+	var errorsList []model.SqlErr
+
+	type RestoreResult struct {
+		Database model.RestoreDb
+		Error    error
+		Success  bool
+	}
 
 	var wg sync.WaitGroup
-	ch := make(chan model.RestoreDb, len(restoreDbList))
-	chError := make(chan error, len(restoreDbList))
+	resultCh := make(chan RestoreResult, len(restoreDbList))
 
 	restoreLogFile, err := os.OpenFile("restore.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		slog.Error("Cannot open restore log file: ", "Error: ", err)
-		return nil, []error{err}
 	}
 	defer restoreLogFile.Close()
 
@@ -195,9 +205,9 @@ func (dr *DatabaseRepository) RestoreDatabase(restoreDbList []model.RestoreDb, d
 		Level:     slog.LevelInfo,
 	}))
 
-	for _, db := range restoreDbList {
+	for i, db := range restoreDbList {
 		wg.Add(1)
-		go func(wg *sync.WaitGroup) {
+		go func(db model.RestoreDb, index int) {
 			defer wg.Done()
 
 			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
@@ -221,37 +231,44 @@ func (dr *DatabaseRepository) RestoreDatabase(restoreDbList []model.RestoreDb, d
 			stmt, err := dr.connection.Prepare(query)
 			if err != nil {
 				restoreLogger.Error("Error preparing RESTORE query: ", "Query: ", query, "Error: ", err)
-				chError <- err
+				resultCh <- RestoreResult{Database: db, Error: err, Success: false}
 				return
 			}
 			_, err = stmt.ExecContext(ctx, sql.Named("Path", db.BackupPath))
 			if err != nil {
 				restoreLogger.Error("Error executing RESTORE query: ", "Query: ", query, "Error: ", err)
-				chError <- err
+				resultCh <- RestoreResult{Database: db, Error: err, Success: false}
 				return
 			}
 
 			restoreLogger.Info(fmt.Sprintf("Restore related to [%v] database completed", db.Database.Name), "Database:", db.Database.Name)
-			ch <- db
+			resultCh <- RestoreResult{Database: db, Error: nil, Success: true}
 
 			return
 
-		}(&wg)
+		}(db, i)
 
 	}
 
 	go func() {
 		wg.Wait()
-		close(ch)
-		close(chError)
+		close(resultCh)
 	}()
 
-	for doneDb := range ch {
-		restoreDoneDbList = append(restoreDoneDbList, doneDb)
+	results := make([]RestoreResult, len(restoreDbList))
+	for result := range resultCh {
+		results = append(results, result)
 	}
 
-	for err := range chError {
-		errorsList = append(errorsList, err)
+	for _, result := range results {
+		if result.Success {
+			restoreDoneDbList = append(restoreDoneDbList, result.Database)
+		} else {
+			sqlErr := model.NewSqlErr(result.Database.Database.Name, result.Error)
+			if sqlErr != nil {
+				errorsList = append(errorsList, *sqlErr)
+			}
+		}
 	}
 
 	restoreLogger.Info(fmt.Sprintf("Total Time: %v", time.Since(t0)))

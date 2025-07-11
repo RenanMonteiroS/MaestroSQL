@@ -281,6 +281,44 @@
         .oauth-section {
             margin-bottom: 1.5rem;
         }
+        #resultModal .modal-body {
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+        #resultModal .result-section {
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #dee2e6;
+        }
+        #resultModal .result-section:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+        #resultModal .result-title {
+            font-weight: bold;
+            margin-bottom: 0.75rem;
+        }
+        #resultModal .result-list {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        #resultModal .result-list li {
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            margin-bottom: 0.5rem;
+            font-family: monospace;
+        }
+        #resultModal .result-list .success {
+            background-color: #e9f7ef;
+            color: #155724;
+            border-left: 4px solid #28a745;
+        }
+        #resultModal .result-list .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
         
     </style>
 </head>
@@ -596,6 +634,24 @@
             </div>
         </div>
     </div>
+    
+    <!-- Result Modal -->
+    <div class="modal fade" id="resultModal" tabindex="-1" aria-labelledby="resultModalLabel" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="resultModalLabel"></h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body" id="resultModalBody">
+            <!-- Content will be populated via JavaScript -->
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{call .T "resultModalCloseButton"}}</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
     <script>
@@ -649,8 +705,6 @@
                     "mfaKey": document.getElementById('modalMfaToken').value,
                 };
 
-                console.log
-
                 headers = getHeaders()
                 const response = await fetch(`/login?method=osi`, {
                     method: 'POST',
@@ -661,14 +715,12 @@
                 const result = {"status": await response.status, "body": await response.json()};
 
                 if (!response.ok) {
-                    throw new Error(`${result.body.errors.osiMsg}`);
+                    throw new Error(`${result.body.errors.osiMsg || result.body.errors.request}`);
                 }
 
                 document.getElementById('modalMfaToken').value = "";
                 document.getElementById('modalPassword').value = "";
                 document.getElementById('modalEmail').value = "";
-
-                console.log("Hey: ", document.getElementById('modalMfaToken').value)
                 
                 // Closes the modal
                 authModal.hide();
@@ -1079,6 +1131,103 @@
             }
 
             document.getElementById('summary-content').innerHTML = summaryHTML;
+        } 
+        
+        // Populates the content of modalResult
+        function populateAndShowResultModal(operation, result) {
+            const resultModal = new bootstrap.Modal(document.getElementById('resultModal'));
+            const modalTitle = document.getElementById('resultModalLabel');
+            const modalBody = document.getElementById('resultModalBody');
+
+            const opCapitalized = operation.charAt(0).toUpperCase() + operation.slice(1);
+            modalTitle.textContent = '{{call .T "resultModalOperationSummary" }}'.replace("{operation}", opCapitalized);
+            
+            const completed = Array.isArray(result.data?.backupDone) || Array.isArray(result.data?.restoreDone) ? (operation === 'backup' ? result.data?.backupDone.map(db => db.name) : result.data?.restoreDone.map(db => db.database.name)) : null;
+            const errors = (operation === 'backup' ? result.errors?.backupErrors : result.errors?.restoreErrors) || result.errors || null;
+            const backupPath = result.data?.backupPath;      
+            const totalTime = result.data?.totalTime;
+
+            let statusTitle 
+            if (errors && completed) {
+                statusTitle = '{{ call .T "resultModalResultMessageCompletedWithErrors"}}'.replace("{operation}", opCapitalized);
+            } else if (errors && !completed) {
+                statusTitle = '{{ call .T "resultModalResultMessageError"}}'.replace("{operation}", opCapitalized);
+            } else if (!errors && completed) {
+                statusTitle = '{{ call .T "resultModalResultMessageSuccess"}}'.replace("{operation}", opCapitalized);
+            }
+
+            let contentHTML = `<h5 class="mb-3">${statusTitle}</h5>`;
+
+            if (completed && completed.length > 0) {
+                contentHTML += `
+                    <div class="result-section">
+                        <h6 class="result-title text-success"><i class="fas fa-check-circle me-2"></i>` + '{{call .T "resultModalSuccess"}}' + `</h6>
+                        <ul class="result-list">
+                            ${completed.map(db => `<li class="success">${db.name || db}</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+
+            if (errors) {
+                let errorItems = '';
+                if (Array.isArray(errors)) {
+                    // Check if this is the detailed backup error structure
+                    if (errors.every(e => e.hasOwnProperty('Message') && e.hasOwnProperty('All') && Array.isArray(e.All) && e.All.length > 0)) {
+                        errorItems = errors.map(err => {
+                            const mainError = err.Message;
+                            const rootCause = err.All[0].Message;
+                            
+                            let errorMessage = `<strong>${err.DatabaseName || 'Error'}:</strong> ${mainError}`;
+                            if (rootCause && rootCause !== mainError) {
+                                errorMessage += ` <em>(Cause: ${rootCause})</em>`;
+                            }
+                            return `<li class="error">${errorMessage}</li>`;
+                        }).join('');
+                    } else if (errors.every(e => e.hasOwnProperty('database') && e.hasOwnProperty('error'))){
+                        errorItems = errors.map(err => {                           
+                            let errorMessage = `<strong>${err.database || 'Error'}:</strong> ${err.error}`;
+                            return `<li class="error">${errorMessage}</li>`;
+                        }).join('');
+                    } else {
+                        errorItems = errors.map(err => `<li class="error">${err}</li>`).join('');
+                    }
+                } else if (typeof errors === 'object' && errors !== null) {
+                    errorItems = Object.entries(errors).map(([key, val]) => `<li class="error"><strong>${key}:</strong> ${val}</li>`).join('');
+                }
+
+                if (errorItems) {
+                    contentHTML += `
+                        <div class="result-section">
+                            <h6 class="result-title text-danger"><i class="fas fa-exclamation-triangle me-2"></i>` + '{{call .T "resultModalErrorsEncountered"}}' + `</h6>
+                            <ul class="result-list">
+                                ${errorItems}
+                            </ul>
+                        </div>
+                    `;
+                }
+            }
+
+            if (backupPath) {
+                contentHTML += `
+                    <div class="result-section">
+                        <h6 class="result-title"><i class="fas fa-folder me-2"></i>` + '{{call .T "resultModalBackupPath"}}' + `</h6>
+                        <p><code>${backupPath}</code></p>
+                    </div>
+                `;
+            }
+
+            if (totalTime) {
+                contentHTML += `
+                    <div class="result-section">
+                        <h6 class="result-title"><i class="fas fa-folder me-2"></i>` + '{{call .T "resultModalTotalTime"}}' + `</h6>
+                        <p><code>${totalTime}</code></p>
+                    </div>
+                `;
+            }
+
+            modalBody.innerHTML = contentHTML;
+            resultModal.show();
         }
 
         /**
@@ -1103,10 +1252,10 @@
             const btn = document.getElementById('execute-btn');
             const originalText = btn.innerHTML;
             
-            try {
-                btn.innerHTML = `<i class="fas fa-spinner fa-spin me-1"></i> {{ call .T "running" }}`;
-                btn.disabled = true;
+            btn.innerHTML = `<i class="fas fa-spinner fa-spin me-1"></i> {{ call .T "running" }}`;
+            btn.disabled = true;
 
+            try {
                 const requestData = {
                     databases: 
                         selectedDatabases.map(db => {
@@ -1116,43 +1265,28 @@
                 };
 
                 let response;
+                let endpoint = operation === 'backup' ? '/backup' : '/restore';
+                let body = operation === 'backup' ? JSON.stringify(requestData) : JSON.stringify({backupFilesPath: document.getElementById('path').value});
                 
-                if (operation === 'backup') {
-                    response = await fetch(`/backup`, {
-                        method: 'POST',
-                        headers: getHeaders(),
-                        body: JSON.stringify(requestData)
-                    });
-                    } else if (operation === 'restore') {
-                    response = await fetch(`/restore`, {
-                        method: 'POST',
-                        headers: getHeaders(),
-                        body: JSON.stringify({backupFilesPath: document.getElementById('path').value})
-                    });                    
-                }           
+                response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: getHeaders(),
+                    body: body
+                });          
                 
-                const result = {"status": await response.status, "body": await response.json()};
-
+                const result = await response.json();
+                
                 if (!response.ok) {
-                    if (response.status == 401) {
-                        authModal.show();
-                        throw new Error(`${result.body.message}`);
-                    }
-                    throw new Error(`${result.body.message}`);
+                    throw result;
                 }
 
-                console.log('Operation performed:', result);
-                
-                alert(`{{ call .T "operationSuccess" }}`.replace("{operation}", operation.toUpperCase()));
-                btn.innerHTML = `<i class="fas fa-check me-1"></i> {{ call .T "operationComplete" }}`;
-                btn.className = 'btn btn-success';
+                populateAndShowResultModal(operation, result);
                 
             } catch (error) {
-                console.error('Error on operation: \n', error.message);
-                alert(`{{ call .T "operationError" }}`.replace("{operation}", operation.toUpperCase()).replace("{errorMessage}", error.message));
+                populateAndShowResultModal(operation, error);
+            } finally {
                 btn.innerHTML = originalText;
                 btn.disabled = false;
-                btn.className = 'btn btn-success';
             }
         }
 
@@ -1176,7 +1310,7 @@
 
             } 
             catch(err) {
-                console.log(`Error trying to logout: ${err}`)
+                console.error(`Error trying to logout: ${err}`)
                 alert(`Error trying to logout: ${err}`);
             }
             
@@ -1200,7 +1334,7 @@
                 return data;
             }
             catch (err){
-                console.log(`Error while trying to get session: ${err}`);
+                console.error(`Error while trying to get session: ${err}`);
                 alert(`Error while trying to get session: ${err}`);
             }
             
