@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"io/fs"
 	"log/slog"
 	"net"
 	"net/http"
@@ -33,6 +34,9 @@ import (
 
 //go:embed templates/*
 var TemplateFS embed.FS
+
+//go:embed static
+var StaticFS embed.FS
 
 //go:embed locales/*.json
 var LocaleFS embed.FS
@@ -91,6 +95,8 @@ func main() {
 			},
 		})
 	}
+
+	//server.Static("/static", "./static")
 
 	// Creates the templates that will be served. It uses template.ParseFS to read the system's fs instead of the OS's fs. The embed templates will be read
 	tmpl := template.Must(template.ParseFS(TemplateFS, "templates/*"))
@@ -172,6 +178,13 @@ func main() {
 
 		c.Next()
 	})
+
+	staticSub, err := fs.Sub(StaticFS, "static")
+	if err != nil {
+		slog.Error("Error creating subfilesystem", "Error", err)
+	}
+
+	server.StaticFS("/static", http.FS(staticSub))
 
 	// If the app uses CSRF protection, starts a CSRF security middleware into the "/" route
 	if config.AppCSRFTokenUsage {
