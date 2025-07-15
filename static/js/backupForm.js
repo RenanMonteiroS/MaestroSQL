@@ -136,7 +136,7 @@ function updateStepNavigation() {
     }
 
     // Updates the navbar buttons
-    document.getElementById('prev-btn').disabled = currentStep === 1;
+    document.getElementById('prev-btn').classList.toggle('d-none', currentStep === 1);
     
     if (currentStep === totalSteps) {
         document.getElementById('next-btn').classList.add('d-none');
@@ -486,6 +486,8 @@ function populateAndShowResultModal(operation, result) {
     const errors = (operation === 'backup' ? result.errors?.backupErrors : result.errors?.restoreErrors) || result.errors || null;
     const backupPath = result.data?.backupPath;      
     const totalTime = result.data?.totalTime;
+    const totalOpe = (result.data?.totalBackup || result.data?.totalRestore) || null
+    const totalOpeError = (result.errors?.totalBackupErrors || result.errors?.totalRestoreErrors) || null
 
     let statusTitle 
     if (errors && completed) {
@@ -501,7 +503,7 @@ function populateAndShowResultModal(operation, result) {
     if (completed && completed.length > 0) {
         contentHTML += `
             <div class="result-section">
-                <h6 class="result-title text-success"><i class="fas fa-check-circle me-2"></i> ${window.appConfig.translations.resultModalSuccess} </h6>
+                <h6 class="result-title text-success"><i class="fas fa-check-circle me-2"></i> ${window.appConfig.translations.resultModalSuccess} ${totalOpe ? '(' + totalOpe + ')' : ''} </h6> 
                 <ul class="result-list">
                     ${completed.map(db => `<li class="success">${db.name || db}</li>`).join('')}
                 </ul>
@@ -539,7 +541,7 @@ function populateAndShowResultModal(operation, result) {
         if (errorItems) {
             contentHTML += `
                 <div class="result-section">
-                    <h6 class="result-title text-danger"><i class="fas fa-exclamation-triangle me-2"></i> ${window.appConfig.translations.resultModalErrorsEncountered} </h6>
+                    <h6 class="result-title text-danger"><i class="fas fa-exclamation-triangle me-2"></i> ${window.appConfig.translations.resultModalErrorsEncountered} ${totalOpeError ? '(' + totalOpeError + ')' : ''} </h6> 
                     <ul class="result-list">
                         ${errorItems}
                     </ul>
@@ -612,7 +614,6 @@ async function executeOperation() {
         let endpoint = operation === 'backup' ? '/backup' : '/restore';
         let body = operation === 'backup' ? JSON.stringify(requestData) : JSON.stringify({backupFilesPath: document.getElementById('path').value});
         
-        console.log(body);
 
         response = await fetch(endpoint, {
             method: 'POST',

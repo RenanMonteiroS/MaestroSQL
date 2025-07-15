@@ -91,5 +91,7 @@
   "resultModalResultMessageCompletedWithErrors": "{operation} completed with errors.",
   "resultModalResultMessageError": "{operation} operation error.",
   "resultModalCloseButton": "Close",
-  "resultModalTotalTime": "Total Time"
+  "resultModalTotalTime": "Total Time",
+  "resultModalTotalBackup": "Total Backups",
+  "resultModalTotalError": "Total Errors"
 }

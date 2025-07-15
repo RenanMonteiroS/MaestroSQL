@@ -303,16 +303,18 @@
                     </div>
 
                     <!-- Navigation Buttons -->
-                    <div class="btn-container d-flex justify-content-between">
-                        <button type="button" class="btn btn-secondary" id="prev-btn" onclick="previousStep()" disabled>
-                            <i class="fas fa-arrow-left me-1"></i>
-                            {{ call .T "previous" }}
-                        </button>
-                        <button type="button" class="btn btn-danger d-none" id="cancel-btn" onclick="">
-                            <i class="fas fa-times me-1"></i>
-                            {{ call .T "cancel" }}
-                        </button>
+                    <div class="btn-container d-flex">
                         <div>
+                            <button type="button" class="btn btn-secondary" id="prev-btn" onclick="previousStep()" >
+                                <i class="fas fa-arrow-left me-1"></i>
+                                {{ call .T "previous" }}
+                            </button>
+                            <button type="button" class="btn btn-danger d-none" id="cancel-btn" onclick="">
+                                <i class="fas fa-times me-1"></i>
+                                {{ call .T "cancel" }}
+                            </button>
+                        </div>
+                        <div class="ms-auto">
                             <button type="button" class="btn btn-primary" id="next-btn" onclick="nextStep()">
                                 {{ call .T "next" }}
                                 <i class="fas fa-arrow-right ms-1"></i>
@@ -381,17 +383,19 @@
                 summaryBackupPath: {{ call .T "summaryBackupPath" }},
                 summarySelectedDatabases:{{ call .T "summarySelectedDatabases" }},
                 resultModalResultMessageCompletedWithErrors: {{ call .T "resultModalResultMessageCompletedWithErrors"}},
-                resultModalResultMessageError: {{ call .T "resultModalResultMessageError"}},
-                resultModalResultMessageSuccess: {{ call .T "resultModalResultMessageSuccess"}},
+                resultModalResultMessageError: {{ call .T "resultModalResultMessageError" }},
+                resultModalResultMessageSuccess: {{ call .T "resultModalResultMessageSuccess" }},
                 confirmBackup: {{ call .T "confirmBackup" }},
                 confirmRestore: {{ call .T "confirmRestore" }},
                 running: {{ call .T "running" }},
                 cancel: {{ call .T "cancel" }},
-                resultModalErrorsEncountered: {{call .T "resultModalErrorsEncountered"}},
-                resultModalSuccess: {{call .T "resultModalSuccess"}},
-                resultModalOperationSummary: {{call .T "resultModalOperationSummary" }},
-                resultModalBackupPath: {{call .T "resultModalBackupPath"}},
-                resultModalTotalTime: {{call .T "resultModalTotalTime"}}
+                resultModalErrorsEncountered: {{ call .T "resultModalErrorsEncountered" }},
+                resultModalSuccess: {{ call .T "resultModalSuccess"}},
+                resultModalOperationSummary: {{ call .T "resultModalOperationSummary" }},
+                resultModalBackupPath: {{ call .T "resultModalBackupPath" }},
+                resultModalTotalTime: {{ call .T "resultModalTotalTime" }},
+                resultModalTotalError: {{ call .T "resultModalTotalError" }},
+                resultModalTotalBackup: {{ call .T "resultModalTotalBackup" }}
             }
         };
     </script>
