@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -116,8 +117,33 @@ func (ds *DatabaseService) BackupDatabase(backupDbList []model.Database, backupP
 		return []model.Database{}, []model.SqlErr{}, fmt.Errorf("Connection failed. Try to /connect.\nDetails: %v", err.Error()), ""
 	}
 
+	existingDatabases, err := ds.GetDatabases()
+	if err != nil {
+		slog.Error("Backup database cannot start. Cannot get databases", "Error", err)
+		return []model.Database{}, []model.SqlErr{}, fmt.Errorf("Cannot get databases. Details: %v", err.Error()), ""
+	}
+
+	dbNamesSet := make(map[string]struct{})
+	allowedDbs := make([]model.Database, 0, len(backupDbList))
+	bannedDbs := make([]model.SqlErr, 0, len(backupDbList))
+
+	for _, db := range existingDatabases {
+		dbNamesSet[db.Name] = struct{}{}
+	}
+
+	for _, db := range backupDbList {
+		if _, ok := dbNamesSet[db.Name]; ok {
+			allowedDbs = append(allowedDbs, db)
+		} else {
+			bannedDbs = append(bannedDbs, *model.NewSqlErr(db.Name, fmt.Errorf("The database %v does not exists in the server", db.Name)))
+		}
+	}
+
 	slog.Info("Starting backup...", "Databases", backupDbList, "Backup path", backupPath)
-	backupDbDoneList, errBackup := ds.repository.BackupDatabase(backupDbList, backupPath)
+	backupDbDoneList, errBackup := ds.repository.BackupDatabase(allowedDbs, backupPath)
+	if len(bannedDbs) > 0 {
+		errBackup = append(errBackup, bannedDbs...)
+	}
 	if errBackup != nil {
 		slog.Warn("Backup completed with errors", "Completed backups", backupDbDoneList, "Errors", errBackup)
 		totalTime := fmt.Sprintf("%dh%dm%ds", int(time.Since(t0).Hours()), int(time.Since(t0).Minutes())%60, int(time.Since(t0).Seconds())%60)
@@ -129,7 +155,7 @@ func (ds *DatabaseService) BackupDatabase(backupDbList []model.Database, backupP
 	return backupDbDoneList, nil, nil, totalTime
 }
 
-// Starts the backup, for each database selected, storing into the backup path choosed.
+// Starts the backup, for each database selected, storing into the backup path chosen.
 // Before it calls the repository.RestoreDatabase() function, it checks if the connection is set, gets the backup file data, mounts the database object and gets the default data files path
 func (ds *DatabaseService) RestoreDatabase(backupFilesPath string) ([]model.RestoreDb, []model.SqlErr, error, string) {
 	t0 := time.Now()
@@ -144,6 +170,17 @@ func (ds *DatabaseService) RestoreDatabase(backupFilesPath string) ([]model.Rest
 	var database model.RestoreDb
 	var restoreDatabaseList []model.RestoreDb
 
+	ok, err := regexp.MatchString(`^[a-zA-Z0-9._\-/\\\s:(){}\[\]@#$%^&+=~]+$`, backupFilesPath)
+	if err != nil {
+		slog.Error("Cannot search string with regexp", "Error", err)
+		return nil, nil, err, ""
+	}
+
+	if !ok {
+		slog.Error("There is an invalid character in the filesystem path", "Path", backupFilesPath)
+		return nil, nil, fmt.Errorf("There is an invalid character in the filesystem path %v", backupFilesPath), ""
+	}
+
 	// Gets the dir where the backup files are allocated
 	dir, err := os.ReadDir(backupFilesPath)
 	if err != nil {
@@ -151,11 +188,35 @@ func (ds *DatabaseService) RestoreDatabase(backupFilesPath string) ([]model.Rest
 		return nil, nil, err, ""
 	}
 
+	sanitizedErrors := make([]model.SqlErr, 0, len(dir))
 	// For each file with ".bak" extension, inserts the file into a list
 	for _, file := range dir {
 		if filepath.Ext(file.Name()) == ".bak" {
+			ok, err := regexp.MatchString("^[a-zA-Z0-9_#$@.-]+$", file.Name())
+			if err != nil {
+				slog.Error("Cannot search string with regexp", "Error", err)
+				return nil, nil, err, ""
+			}
+			if !ok {
+				slog.Error("There is an invalid character in the database name", "File", file.Name())
+				sanitizedErrors = append(sanitizedErrors, model.SqlErr{Database: strings.Split(file.Name(), ".bak")[0], Err: fmt.Errorf("There is an invalid character in the database name")})
+				continue
+			}
+
 			backupsFullPathList = append(backupsFullPathList, fmt.Sprintf("%s%s", backupFilesPath, file.Name()))
+
 		} else if filepath.Ext(file.Name()) == ".BAK" {
+			ok, err := regexp.MatchString("^[a-zA-Z0-9_#$@.-]+$", file.Name())
+			if err != nil {
+				slog.Error("Cannot search string with regexp", "Error", err)
+				return nil, nil, err, ""
+			}
+			if !ok {
+				slog.Error("There is an invalid character in the database name", "File", file.Name())
+				sanitizedErrors = append(sanitizedErrors, model.SqlErr{Database: strings.Split(file.Name(), ".bak")[0], Err: fmt.Errorf("There is an invalid character in the database name")})
+				continue
+			}
+
 			backupsFullPathList = append(backupsFullPathList, fmt.Sprintf("%s%s", backupFilesPath, strings.Split(file.Name(), ".BAK")[0])+".bak")
 		}
 	}
@@ -212,6 +273,7 @@ func (ds *DatabaseService) RestoreDatabase(backupFilesPath string) ([]model.Rest
 	slog.Info("Starting restore...", "Databases: ", restoreDatabaseList, "Data path: ", dataPath, "Log path:", "Log path")
 	restoredDatabases, errRestoreList := ds.repository.RestoreDatabase(restoreDatabaseList, dataPath, logPath)
 	totalTime := fmt.Sprintf("%dh%dm%ds", int(time.Since(t0).Hours()), int(time.Since(t0).Minutes())%60, int(time.Since(t0).Seconds())%60)
+	errRestoreList = append(errRestoreList, sanitizedErrors...)
 	if errRestoreList != nil {
 		slog.Warn("Restore completed with errors: ", "Completed restores: ", restoredDatabases, "Errors: ", errRestoreList)
 		return restoredDatabases, errRestoreList, nil, totalTime

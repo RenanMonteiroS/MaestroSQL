@@ -179,11 +179,11 @@ func main() {
 		c.Next()
 	})
 
+	// Create subfilesystem to serve static
 	staticSub, err := fs.Sub(StaticFS, "static")
 	if err != nil {
 		slog.Error("Error creating subfilesystem", "Error", err)
 	}
-
 	server.StaticFS("/static", http.FS(staticSub))
 
 	// If the app uses CSRF protection, starts a CSRF security middleware into the "/" route

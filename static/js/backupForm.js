@@ -1,6 +1,7 @@
 let currentStep = 1;
 const totalSteps = 4;
 let authModal;
+let abortController = new AbortController()
 
 //When the document is loaded...
 document.addEventListener('DOMContentLoaded', async function() {   
@@ -589,10 +590,14 @@ async function executeOperation() {
     }
 
     const btn = document.getElementById('execute-btn');
+    const prevBtn = document.getElementById('prev-btn');
+    const cancelBtn = document.getElementById('cancel-btn');
     const originalText = btn.innerHTML;
     
     btn.innerHTML = `<i class="fas fa-spinner fa-spin me-1"></i> ${window.appConfig.translations.running}`;
     btn.disabled = true;
+    prevBtn.classList.add('d-none');
+    cancelBtn.classList.remove('d-none');
 
     try {
         const requestData = {
@@ -607,6 +612,8 @@ async function executeOperation() {
         let endpoint = operation === 'backup' ? '/backup' : '/restore';
         let body = operation === 'backup' ? JSON.stringify(requestData) : JSON.stringify({backupFilesPath: document.getElementById('path').value});
         
+        console.log(body);
+
         response = await fetch(endpoint, {
             method: 'POST',
             headers: getHeaders(),
@@ -626,6 +633,8 @@ async function executeOperation() {
     } finally {
         btn.innerHTML = originalText;
         btn.disabled = false;
+        prevBtn.classList.remove('d-none');
+        cancelBtn.classList.add('d-none');
     }
 }
 

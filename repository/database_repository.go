@@ -325,11 +325,13 @@ func (dr *DatabaseRepository) GetBackupFilesData(backupFiles []string) ([]model.
 
 		stmt, err := dr.connection.Prepare(query)
 		if err != nil {
+			slog.Error("Error preparing RESTORE FILELISTONLY query: ", "Query: ", query, "Error: ", err)
 			return nil, err
 		}
 
 		rows, err := stmt.Query(sql.Named("Path", backupFile))
 		if err != nil {
+			slog.Error("Error executing RESTORE FILELISTONLY query: ", "Query: ", query, "Error: ", err)
 			return nil, err
 		}
 
