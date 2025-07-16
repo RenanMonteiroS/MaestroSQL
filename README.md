@@ -8,23 +8,27 @@ MaestroSQL addresses the complexity of SQL Server database management by providi
 
 - **Simplified Database Operations**: Easy-to-use web interface for backup and restore operations
 - **Concurrent Processing**: High-performance parallel processing for multiple database operations
-- **Security**: Optional JWT-based authentication with MFA support, CSRF and CORS protection, and SSL/TLS encryption.
+- **Security**: Optional session-based authentication with OAuth2 (Google, Microsoft) and MFA support, CSRF and CORS protection, and SSL/TLS encryption.
 - **Cross-Platform**: Works on Windows, macOS, and Linux
 - **Real-time Monitoring**: Comprehensive and structured logging and progress tracking
 
 ## 🚀 Features
 
 ### Core Features
-- 🔐 **Optional Authentication**: JWT-based authentication with MFA support
+- 🔐 **Optional Authentication**: Session-based authentication with support for multiple methods, including [OSI](https://github.com/RenanMonteiroS/OSI), Google OAuth2, and Microsoft OAuth2.
 - 📊 **Database Discovery**: Automatic detection and listing of SQL Server databases
 - 💾 **Backup Operations**: Concurrent backup of multiple databases with timestamp naming
 - 🔄 **Restore Operations**: Intelligent restore from .bak files with automatic path resolution
 - 📝 **Structured Logging**: Detailed and structured operation logs for backup, restore, and error tracking
 - 🎨 **Modern UI**: Bootstrap-based responsive web interface with step-by-step wizard
+- 🌐 **Multi-language Support**: Support for English (en-US) and Portuguese (pt-BR).
+- 📄 **Custom 404 Page**: A user-friendly 404 page to handle invalid routes.
 
 ### Technical Features
 - ⚡ **Concurrent Processing**: Goroutine-based parallel operations for better performance
 - 🛡️ **Security**: CSRF and CORS protection, and SSL/TLS encryption
+- ⚔️ **Sanitized Queries**: All SQL queries are sanitized to prevent SQL injection attacks.
+- 📦 **Standardized JSON Response**: All API responses follow a standard JSON format.
 - ⏱️ **Timeout Handling**: Configurable timeouts (10 min backup, 15 min restore)
 - 🔧 **Automatic Path Resolution**: Uses SQL Server's default data and log paths
 - 📁 **Smart File Handling**: Supports both .bak and .BAK file extensions
@@ -97,16 +101,100 @@ MaestroSQL follows a clean architecture pattern with clear separation of concern
 - **BackupDataFile**: Comprehensive backup file metadata
 
 #### Configuration
-- **Authentication**: Configurable JWT authentication
+- **Authentication**: Configurable session-based authentication.
 - **Timeouts**: Operation-specific timeout settings
 - **Paths**: Automatic SQL Server path detection
 
 ## 📡 API Endpoints
 
 ### Authentication
-All endpoints (except `/`) require valid JWT token in `Authorization` header when authentication is enabled.
+Authentication is handled via a session-based cookie store. When authentication is enabled, most endpoints are protected by a middleware (`middleware/auth_middleware.go`) that verifies the user's session. The session status can be checked at the `/session` endpoint.
+
+#### `GET /login`
+**Description**: Initiates the authentication process. The authentication method is specified via a query parameter.
+- **Query Parameters**:
+    - `method`: `osi`, `google`, or `microsoft`.
+- **Behavior**:
+    - For `google` and `microsoft`, it redirects the user to the respective OAuth2 provider's login page.
+    - For `osi`, it requires a `POST` request with user credentials.
+
+#### `POST /login?method=osi`
+**Description**: Authenticates the user using the OSI method.
+- **Request Body**:
+  ```json
+  {
+    "email": "user@example.com",
+    "password": "password",
+    "mfaKey": "123456"
+  }
+  ```
+- **Response (success)**: 
+  ```json
+  {
+      "status": "success",
+      "code": 200,
+      "message": "Login done successfully",
+      "data": {
+          "user": "example@example.com"
+      },
+      "timestamp": "2025-07-16T10:40:11-03:00",
+      "path": "/login"
+  }
+  ```
+- **Response (fail)**: 
+  ```json
+  {
+    "status": "error",
+    "code": 400,
+    "message": "OSI Response is not OK",
+    "errors": {
+        "osiMsg": "Wrong TOTP value"
+    },
+    "timestamp": "2025-07-16T10:41:59-03:00",
+    "path": "/login"
+  }
+  ```
+
+#### `GET /logout`
+**Description**: Clears the user's session cookie, effectively logging them out. If the logout was successful, it will return a status 200.
+
+#### `GET /session`
+**Description**: Retrieves session information. If the user have a session, it returns a 200 status code. If not, it returns a 401 status code.
+- **Response (success)**:
+  ```json
+  {
+    "success": true,
+    "code": 200,
+    "message": "Session found",
+    "data": {
+      "user": "user@example.com"
+    },
+    "timestamp": "2025-07-16T10:23:47-03:00",
+    "path": "/session"
+  }
+  ```
+- **Response (fail)**:
+  ```json
+  {
+    "status": "error",
+    "code": 401,
+    "message": "None session was found",
+    "errors": {
+        "session": "None session was found"
+    },
+    "timestamp": "2025-07-16T10:26:23-03:00",
+    "path": "/session"
+  }
+  ```
+
+#### `GET /auth/google/callback`
+**Description**: Callback URL for Google OAuth2. Handles the authorization code from Google, exchanges it for a token, retrieves user information, and creates a session.
+
+#### `GET /auth/microsoft/callback`
+**Description**: Callback URL for Microsoft OAuth2. Handles the authorization code from Microsoft, exchanges it for a token, retrieves user information, and creates a session.
 
 ### Core Operations
+When authentication is enabled, the following endpoints are protected and require a valid user session.
 
 #### `GET /`
 **Description**: Serves the main web interface
@@ -121,31 +209,77 @@ All endpoints (except `/`) require valid JWT token in `Authorization` header whe
     "host": "server_address",
     "port": "1433",
     "user": "username",
-    "password": "password"
+    "password": "password",
+    "instance": "instance",
+    "encryption":"encryption",
+    "trustServerCertificate": true
   }
   ```
-- **Response**: Connection object or error details
-- **Features**: Connection validation, credential verification
+- **Response (success)**:
+  ```json
+  {
+    "status": "success",
+    "code": 200,
+    "message": "Connection done successfully",
+    "data": {
+        "server": "localhost"
+    },
+    "timestamp": "2025-07-16T10:43:43-03:00",
+    "path": "/connect"
+  }
+  ```
+- **Response (fail)**:
+  ```json
+  {
+    "status": "error",
+    "code": 500,
+    "message": "Cannot connect to the server",
+    "errors": {
+        "connect": "TLS Handshake failed: tls: failed to verify certificate: x509: certificate signed by unknown authority"
+    },
+    "timestamp": "2025-07-16T10:43:43-03:00",
+    "path": "/connect"
+  }
+  ```
 
 #### `GET /databases`
 **Description**: Retrieves all databases and their file information
-- **Response**:
+- **Response (success)**:
   ```json
-  [
-    {
-      "id": "database_id",
-      "name": "database_name",
-      "files": [
-        {
-          "LogicalName": "logical_name",
-          "PhysicalName": "physical_path",
-          "FileType": "ROWS|LOG"
-        }
-      ]
-    }
-  ]
+  {
+    "status": "success",
+    "code": 200,
+    "message": "Databases collected successfully",
+    "data": [
+      {
+        "id": "database_id",
+        "name": "database_name",
+        "files": [
+          {
+            "LogicalName": "logical_name",
+            "PhysicalName": "physical_path",
+            "FileType": "ROWS|LOG"
+          }
+        ]
+      }
+    ],
+    "timestamp": "2025-07-16T10:48:48-03:00",
+    "path": "/databases"    
+  }
   ```
-- **Features**: Automatic file classification, metadata extraction
+- **Response (fail)**:
+  ```json
+  {
+    "status": "error",
+    "code": 500,
+    "message": "Cannot get databases",
+    "errors": {
+        "databases": "failed to send SQL Batch: write tcp 127.0.0.1:58411..."
+    },
+    "timestamp": "2025-07-16T10:50:42-03:00",
+    "path": "/databases"
+  }
+  ```
 
 #### `POST /backup`
 **Description**: Performs concurrent backup operations
@@ -156,22 +290,189 @@ All endpoints (except `/`) require valid JWT token in `Authorization` header whe
       {"name": "database1"},
       {"name": "database2"}
     ],
-    "path": "/backup/directory/"
+    "path": "/backup/directory/",
+    "concurrentOpe": 4
   }
   ```
-- **Response**: Backup completion status and any errors
-- **Features**: Concurrent processing, timestamp naming, progress logging
+- **Response (success)**:
+  ```json
+  {
+    "status": "success",
+    "code": 200,
+    "message": "Backup done successfully.",
+    "data": {
+      "backupDone": [
+          {
+            "name": "database1",
+            "name": "database2"
+          }
+      ],
+      "backupPath": "/backup/directory/",
+      "totalBackup": 2,
+      "totalTime": "0h0m1s"
+    },
+    "timestamp": "2025-07-16T10:52:18-03:00",
+    "path": "/backup"
+  }
+  ```
+- **Response (done with errors)**:
+  ```json
+  {
+    "status": "error",
+    "code": 207,
+    "message": "Backup completed with errors.",
+    "data": {
+      "backupDone": [
+          {
+            "name": "database1",
+          }
+      ],
+      "backupPath": "/backup/directory/",
+      "totalBackup": 1,
+      "totalTime": "0h0m1s"
+    },
+    "errors": {
+        "backupErrors": [
+            {
+                "database": "database2",
+                "error": "mssql: BACKUP DATABASE is being terminated abnormally."
+            }
+        ],
+        "totalBackupErrors": 1
+    },
+    "timestamp": "2025-07-16T10:52:18-03:00",
+    "path": "/backup"
+  }
+  ```
+- **Response (error)**:
+  ```json
+  {
+    "status": "error",
+    "code": 207,
+    "message": "Backup completed with errors.",
+    "data": {
+      "backupDone": [
+          {
+            "name": "database1",
+          }
+      ],
+      "backupPath": "/backup/directory/",
+      "totalBackup": 1,
+      "totalTime": "0h0m1s"
+    },
+    "errors": {
+        "backupErrors": [
+            {
+                "database": "database2",
+                "error": "mssql: BACKUP DATABASE is being terminated abnormally."
+            }
+        ],
+        "totalBackupErrors": 1
+    },
+    "timestamp": "2025-07-16T10:52:18-03:00",
+    "path": "/backup"
+  }
+  ```
 
 #### `POST /restore`
 **Description**: Restores databases from backup files
 - **Request Body**:
   ```json
   {
-    "backupFilesPath": "/path/to/backup/files/"
+    "backupFilesPath": "/path/to/backup/files/",
+    "concurrentOpe": 4
   }
   ```
-- **Response**: Restore completion status and any errors
-- **Features**: Automatic file discovery, path resolution, concurrent processing
+- **Response (success)**:
+  ```json
+  {
+    "status": "success",
+    "code": 200,
+    "message": "Restore done successfully.",
+    "data": {
+        "backupPath": "/path/to/backup/files/",
+        "restoreDone": [
+            {
+                "backupPath": "/path/to/backup/files/database.bak",
+                "database": {
+                    "name": "database",
+                    "files": [
+                        {
+                          "LogicalName": "logical_name",
+                          "PhysicalName": "physical_path",
+                          "FileType": "ROWS|LOG"
+                        }
+                    ]
+                }
+            }
+        ],
+        "totalRestore": 1,
+        "totalTime": "0h0m1s"
+    },
+    "timestamp": "2025-07-16T13:58:46-03:00",
+    "path": "/restore"
+  }
+  ```
+
+- **Response (done with errors)**:
+  ```json
+  {
+    "status": "error",
+    "code": 207,
+    "message": "Restore operation completed with errors",
+    "errors": {
+        "restoreErrors": [
+            {
+                "database": "database1",
+                "error": "read tcp [::1]:42211-\u003e[::1]:1433: wsarecv: Cancellation of an existing connection was requested by the remote host."
+            }
+        ],
+        "totalRestoreErrors": 1
+    },
+    "data": {
+        "backupPath": "/path/to/backup/files/",
+        "restoreDone": [
+            {
+                "backupPath": "/path/to/backup/files/database2.bak",
+                "database": {
+                    "name": "database2",
+                    "files": [
+                        {
+                          "LogicalName": "logical_name",
+                          "PhysicalName": "physical_path",
+                          "FileType": "ROWS|LOG"
+                        }
+                    ]
+                }
+            }
+        ],
+        "totalRestore": 1,
+        "totalTime": "0h2m8s"
+    },
+    "timestamp": "2025-07-16T14:09:11-03:00",
+    "path": "/restore"
+  }
+  ```
+
+- **Response (fail)**:
+  ```json
+  {
+    "status": "success",
+    "code": 500,
+    "message": "No restore was completed.",
+    "errors": {
+        "restoreErrors": [
+            {
+                "database": "SVS_CPR_ALU_APARECIDA",
+                "error": "mssql: RESTORE DATABASE está sendo encerrado de forma anormal."
+            }
+        ],
+        "totalRestoreErrors": 1
+    },
+    "timestamp": "2025-07-16T13:58:46-03:00",
+    "path": "/restore"
+  }
+  ```
 
 ## 🛠️ Building and Installation
 
@@ -252,19 +553,27 @@ All configuration is done in the `config/config.go` file.
 
 | Parameter | Description |
 | --- | --- |
-| `AuthenticatorUsage` | Enable or disable JWT authentication (via [OSI](https://github.com/RenanMonteiroS/OSI])). |
-| `AuthenticatorURL` | The URL of the external authentication service. |
+| `AuthenticationMethods` | A list of enabled authentication methods (e.g., `[]string{"OSI", "OAUTH2GOOGLE"}`). |
+| `AuthenticatorURL` | The URL of the external OSI authentication service. |
 | `AppHost` | The host where the application will run. Use `0.0.0.0` to listen on all interfaces. |
 | `AppPort` | The port where the application will run. |
 | `AppOpenOnceRunned` | Open the browser automatically when the application starts. |
 | `AppCertificateUsage` | Enable or disable HTTPS. |
 | `AppCertificateLocation` | The path to the SSL certificate file. |
 | `AppCertificateKeyLocation` | The path to the SSL key file. |
+| `AppSessionSecret` | A secret key for the session cookie store. |
 | `AppCSRFTokenUsage` | Enable or disable CSRF protection. |
 | `AppCSRFCookieSecret` | A secret for the cookie used for CSRF token verification. |
 | `AppCSRFTokenSecret` | A secret for the token used for CSRF token verification. |
 | `CORSUsage` | Enable or disable CORS. |
 | `CORSAllowOrigins` | A list of allowed origins for CORS. |
+| `GoogleOAuth2ClientID` | Client ID for Google OAuth2. |
+| `GoogleOAuth2ClientSecret` | Client Secret for Google OAuth2. |
+| `GoogleOAuth2RedirectURL` | Redirect URL for Google OAuth2. |
+| `MicrosoftOAuth2ClientID` | Client ID for Microsoft OAuth2. |
+| `MicrosoftOAuth2ClientSecret` | Client Secret for Microsoft OAuth2. |
+| `MicrosoftOAuth2RedirectURL` | Redirect URL for Microsoft OAuth2. |
+| `MicrosoftOAuth2AzureADEndpoint` | Azure AD Endpoint for Microsoft OAuth2. |
 
 ## 📋 Usage Guide
 
@@ -296,11 +605,19 @@ All configuration is done in the `config/config.go` file.
 
 ### Authentication Flow (if enabled)
 
-1. Click user icon in navigation
-2. Enter email and password
-3. Provide MFA token (if required)
-4. Receive JWT token for session
-5. Token automatically included in API calls
+1.  The user navigates to the application.
+2.  If a protected resource is accessed without a valid session, they are considered unauthenticated.
+3.  The user can initiate login through the UI, which will redirect them to `/login?method=<provider>`.
+4.  **For OAuth2 (Google/Microsoft):**
+    - The user is redirected to the provider's login page.
+    - After successful authentication, the provider redirects back to the application's callback URL (`/auth/google/callback` or `/auth/microsoft/callback`).
+    - The application validates the response, retrieves user information, and creates a session, storing the user's email in a secure cookie.
+5.  **For OSI:**
+    - The user provides their credentials in a login form.
+    - The application sends a `POST` request to `/login?method=osi`.
+    - The application validates the credentials and creates a session.
+6.  Once the session is created, the user can access the protected routes. The session is automatically verified by a middleware on each request.
+7.  To log out, the user can access the `/logout` endpoint, which clears the session cookie.
 
 ### File Naming Convention
 
@@ -335,11 +652,11 @@ Example: `MyDatabase=2024-06-24_14-30-15.bak`
 - Detailed technical logs for troubleshooting
 
 ### Security Features
-- Optional JWT-based authentication
-- MFA support through external authenticator
-- Secure credential handling (passwords not logged)
-- HTTPS support with SSL/TLS certificates
-- CSRF and CORS protection
+- Optional session-based authentication with OAuth2 and OSI support.
+- MFA support through external authenticator (OSI).
+- Secure credential handling (passwords not logged).
+- HTTPS support with SSL/TLS certificates.
+- CSRF and CORS protection.
 
 ## 📊 Monitoring and Logging
 
@@ -449,7 +766,6 @@ For support and questions:
 - Disable the same connection pool for all operations, making all requests independent
 - Support for MySQL and PostgreSQL
 - Backup encryption
-- Support for pt-br
 ---
 
 **MaestroSQL** - Simplifying SQL Server Database Management, One Operation at a Time! 🎼

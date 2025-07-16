@@ -151,13 +151,16 @@ func main() {
 		serverProtocol = "http"
 	}
 
-	// Opens the URL in the browser and starts the server
-	if config.AppHost == "0.0.0.0" {
-		serverIP = localIP
-		serverAddr = fmt.Sprintf(config.AppHost + ":" + fmt.Sprint(config.AppPort))
-		go openFile(fmt.Sprintf("%v://%v:%v/", serverProtocol, localIP, config.AppPort))
-	} else {
-		go openFile(fmt.Sprintf("%v://%v/", serverProtocol, serverAddr))
+	serverIP = localIP
+	serverAddr = fmt.Sprintf(config.AppHost + ":" + fmt.Sprint(config.AppPort))
+
+	if config.AppOpenOnceRunned {
+		// Opens the URL in the browser and starts the server
+		if config.AppHost == "0.0.0.0" {
+			go openFile(fmt.Sprintf("%v://%v:%v/", serverProtocol, localIP, config.AppPort))
+		} else {
+			go openFile(fmt.Sprintf("%v://%v/", serverProtocol, serverAddr))
+		}
 	}
 
 	bundle := i18n.NewBundle(language.English)

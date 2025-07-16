@@ -1,11 +1,11 @@
 package config
 
 const (
-	AuthenticatorURL               = "http://localhost:8081"  // The address to make calls to get a JWT. Values: Your authenticator address
+	AuthenticatorURL               = "http://localhost:8081"  // The address to make calls to get a JWT. Values: Your authenticator address (OSI authentication only)
 	AppHost                        = "localhost"              // The host where the app will run. 0.0.0.0 to all addresses. If 0.0.0.0 is specified, the local IP is used for requests
 	AppPort                        = 8881                     // The port where the app will run
 	AppSessionSecret               = "my-supersecret-session" // A secret for the cookie used for encrypt sessions
-	AppOpenOnceRunned              = false                    // An option to open the browser at the application address when the application is launched. Values: true/false
+	AppOpenOnceRunned              = true                     // An option to open the browser at the application address when the application is launched. Values: true/false
 	AppCertificateUsage            = false                    // If the HTTPs protocol will be used or not via certificate/key. Values: true/false
 	AppCertificateLocation         = ""                       // The location of the .crt/.pem file
 	AppCertificateKeyLocation      = ""                       // The location of the .key/.pem file

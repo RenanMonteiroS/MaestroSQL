@@ -10,7 +10,6 @@ type ConnInfo struct {
 	Password               string `json:"password" binding:"required"`
 	Instance               string `json:"instance"`
 	Encryption             string `json:"encryption"`
-	MaxConnections         int    `json:"maxConnections"`
 	TrustServerCertificate *bool  `json:"trustServerCertificate"`
 }
 
@@ -21,6 +20,5 @@ func (ci ConnInfo) LogValue() slog.Value {
 		slog.String("user", ci.User),
 		slog.String("password", "REDACTED"),
 		slog.String("instance", ci.Instance),
-		slog.Int("maxConnections", ci.MaxConnections),
 	)
 }

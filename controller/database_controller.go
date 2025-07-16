@@ -93,7 +93,7 @@ func (dc *DatabaseController) BackupDatabase(ctx *gin.Context) {
 
 	if errBackup != nil && len(databaseBackupList) != 0 {
 		slog.Error("Backup completed with errors.", "Origin", ctx.ClientIP(), "User", sessions.Default(ctx).Get("userEmail"), "Error", errBackup)
-		ctx.JSON(http.StatusMultiStatus, model.APIResponse{Status: "error", Code: http.StatusInternalServerError, Message: "Backup completed with errors.", Data: map[string]any{"backupDone": databaseBackupList, "totalTime": totalTime, "backupPath": postData.Path, "totalBackup": len(databaseBackupList)}, Errors: map[string]any{"backupErrors": errBackup, "totalBackupErrors": len(errBackup)}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
+		ctx.JSON(http.StatusMultiStatus, model.APIResponse{Status: "error", Code: http.StatusMultiStatus, Message: "Backup completed with errors.", Data: map[string]any{"backupDone": databaseBackupList, "totalTime": totalTime, "backupPath": postData.Path, "totalBackup": len(databaseBackupList)}, Errors: map[string]any{"backupErrors": errBackup, "totalBackupErrors": len(errBackup)}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
 		return
 	} else if errBackup != nil && len(databaseBackupList) == 0 {
 		var errStringList []string
@@ -137,7 +137,7 @@ func (dc *DatabaseController) RestoreDatabase(ctx *gin.Context) {
 
 	if errRestore != nil && len(restoredDatabases) > 0 {
 		slog.Error("Restore operation completed with errors", "Origin", ctx.ClientIP(), "User", sessions.Default(ctx).Get("userEmail"), "Error", errRestore)
-		ctx.JSON(http.StatusMultiStatus, model.APIResponse{Status: "error", Code: http.StatusInternalServerError, Message: "Restore operation completed with errors", Data: map[string]any{"restoreDone": restoredDatabases, "backupPath": postData.Path, "totalRestore": len(restoredDatabases), "totalTime": totalTime}, Errors: map[string]any{"restoreErrors": errRestore, "totalRestoreErrors": len(errRestore)}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
+		ctx.JSON(http.StatusMultiStatus, model.APIResponse{Status: "error", Code: http.StatusMultiStatus, Message: "Restore operation completed with errors", Data: map[string]any{"restoreDone": restoredDatabases, "backupPath": postData.Path, "totalRestore": len(restoredDatabases), "totalTime": totalTime}, Errors: map[string]any{"restoreErrors": errRestore, "totalRestoreErrors": len(errRestore)}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
 		return
 	} else if errRestore != nil && len(restoredDatabases) == 0 {
 		slog.Error("No restore was completed.", "Origin", ctx.ClientIP(), "User", sessions.Default(ctx).Get("userEmail"), "Error", errRestore)

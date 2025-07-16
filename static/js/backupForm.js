@@ -172,7 +172,6 @@ async function nextStep() {
                 password: document.getElementById('password').value,
                 instance: document.getElementById('instance').value,
                 encryption: document.getElementById('encryption').value,
-                maxConnections: parseInt(document.getElementById('maxConnections').value) || 0,
                 trustServerCertificate: document.getElementById('trustServerCertificate').checked ? true : false
             };
 
@@ -593,13 +592,13 @@ async function executeOperation() {
 
     const btn = document.getElementById('execute-btn');
     const prevBtn = document.getElementById('prev-btn');
-    const cancelBtn = document.getElementById('cancel-btn');
+    //const cancelBtn = document.getElementById('cancel-btn');
     const originalText = btn.innerHTML;
     
     btn.innerHTML = `<i class="fas fa-spinner fa-spin me-1"></i> ${window.appConfig.translations.running}`;
     btn.disabled = true;
     prevBtn.classList.add('d-none');
-    cancelBtn.classList.remove('d-none');
+    //cancelBtn.classList.remove('d-none');
 
     try {
         const requestData = {
