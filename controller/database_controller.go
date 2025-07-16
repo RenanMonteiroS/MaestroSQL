@@ -69,12 +69,13 @@ func (dc *DatabaseController) GetDatabases(ctx *gin.Context) {
 // Handles the POST /backup endpoint.
 // Calls the backup functions. For each request, it checks if the user is authenticated.
 func (dc *DatabaseController) BackupDatabase(ctx *gin.Context) {
-	type PostRequired struct {
-		Databases []model.Database `json:"databases" binding:"required"`
-		Path      string           `json:"path" binding:"required"`
+	type BackupPostRequired struct {
+		Databases     []model.Database `json:"databases" binding:"required"`
+		Path          string           `json:"path" binding:"required"`
+		ConcurrentOpe *int             `json:"concurrentOpe,omitempty"`
 	}
 
-	var postData PostRequired
+	var postData BackupPostRequired
 
 	err := ctx.BindJSON(&postData)
 	if err != nil {
@@ -83,7 +84,7 @@ func (dc *DatabaseController) BackupDatabase(ctx *gin.Context) {
 		return
 	}
 
-	databaseBackupList, errBackup, err, totalTime := dc.service.BackupDatabase(postData.Databases, postData.Path)
+	databaseBackupList, errBackup, err, totalTime := dc.service.BackupDatabase(postData.Databases, postData.Path, postData.ConcurrentOpe)
 	if err != nil {
 		slog.Error("No backup was completed", "Origin", ctx.ClientIP(), "User", sessions.Default(ctx).Get("userEmail"), "Error", err)
 		ctx.JSON(http.StatusInternalServerError, model.APIResponse{Status: "error", Code: http.StatusInternalServerError, Message: "No backup was completed", Errors: map[string]any{"connect": err.Error()}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
@@ -113,16 +114,21 @@ func (dc *DatabaseController) BackupDatabase(ctx *gin.Context) {
 // Handles the POST /restore endpoint.
 // Calls the restore functions. For each request, it checks if the user is authenticated.
 func (dc *DatabaseController) RestoreDatabase(ctx *gin.Context) {
-	var backupFiles model.BackupFiles
+	type RestorePostRequired struct {
+		Path          string `json:"backupFilesPath" binding:"required"`
+		ConcurrentOpe *int   `json:"concurrentOpe,omitempty"`
+	}
 
-	err := ctx.BindJSON(&backupFiles)
+	var postData RestorePostRequired
+
+	err := ctx.BindJSON(&postData)
 	if err != nil {
 		slog.Error("Cannot bind JSON from request body", "Origin", ctx.ClientIP(), "User", sessions.Default(ctx).Get("userEmail"), "Error", err.Error())
 		ctx.JSON(http.StatusInternalServerError, model.APIResponse{Status: "error", Code: http.StatusInternalServerError, Message: "Cannot bind JSON from request body", Errors: map[string]any{"bindJSON": err.Error()}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
 		return
 	}
 
-	restoredDatabases, errRestore, err, totalTime := dc.service.RestoreDatabase(backupFiles.Path)
+	restoredDatabases, errRestore, err, totalTime := dc.service.RestoreDatabase(postData.Path, postData.ConcurrentOpe)
 	if err != nil {
 		slog.Error("No restore was completed", "Origin", ctx.ClientIP(), "User", sessions.Default(ctx).Get("userEmail"), "Error", err.Error())
 		ctx.JSON(http.StatusInternalServerError, model.APIResponse{Status: "error", Code: http.StatusInternalServerError, Message: "Restore operation error", Errors: map[string]any{"restore": err.Error()}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
@@ -131,7 +137,7 @@ func (dc *DatabaseController) RestoreDatabase(ctx *gin.Context) {
 
 	if errRestore != nil && len(restoredDatabases) > 0 {
 		slog.Error("Restore operation completed with errors", "Origin", ctx.ClientIP(), "User", sessions.Default(ctx).Get("userEmail"), "Error", errRestore)
-		ctx.JSON(http.StatusMultiStatus, model.APIResponse{Status: "error", Code: http.StatusInternalServerError, Message: "Restore operation completed with errors", Data: map[string]any{"restoreDone": restoredDatabases, "backupPath": backupFiles.Path, "totalRestore": len(restoredDatabases), "totalTime": totalTime}, Errors: map[string]any{"restoreErrors": errRestore, "totalRestoreErrors": len(errRestore)}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
+		ctx.JSON(http.StatusMultiStatus, model.APIResponse{Status: "error", Code: http.StatusInternalServerError, Message: "Restore operation completed with errors", Data: map[string]any{"restoreDone": restoredDatabases, "backupPath": postData.Path, "totalRestore": len(restoredDatabases), "totalTime": totalTime}, Errors: map[string]any{"restoreErrors": errRestore, "totalRestoreErrors": len(errRestore)}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
 		return
 	} else if errRestore != nil && len(restoredDatabases) == 0 {
 		slog.Error("No restore was completed.", "Origin", ctx.ClientIP(), "User", sessions.Default(ctx).Get("userEmail"), "Error", errRestore)
@@ -140,6 +146,6 @@ func (dc *DatabaseController) RestoreDatabase(ctx *gin.Context) {
 	}
 
 	slog.Info("Restore done successfully.", "Origin", ctx.ClientIP(), "User", sessions.Default(ctx).Get("userEmail"))
-	ctx.JSON(http.StatusOK, model.APIResponse{Status: "success", Code: http.StatusOK, Message: "Restore done successfully.", Data: map[string]any{"restoreDone": restoredDatabases, "backupPath": backupFiles.Path, "totalRestore": len(restoredDatabases), "totalTime": totalTime}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
+	ctx.JSON(http.StatusOK, model.APIResponse{Status: "success", Code: http.StatusOK, Message: "Restore done successfully.", Data: map[string]any{"restoreDone": restoredDatabases, "backupPath": postData.Path, "totalRestore": len(restoredDatabases), "totalTime": totalTime}, Timestamp: time.Now().Format(time.RFC3339), Path: ctx.Request.URL.Path})
 	return
 }

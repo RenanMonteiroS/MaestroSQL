@@ -607,12 +607,13 @@ async function executeOperation() {
                 selectedDatabases.map(db => {
                     return {"name": db}
                 }),
-            path: document.getElementById('path').value
+            path: document.getElementById('path').value,
+            concurrentOpe: parseInt(document.getElementById('maxConnections').value)
         };
 
         let response;
         let endpoint = operation === 'backup' ? '/backup' : '/restore';
-        let body = operation === 'backup' ? JSON.stringify(requestData) : JSON.stringify({backupFilesPath: document.getElementById('path').value});
+        let body = operation === 'backup' ? JSON.stringify(requestData) : JSON.stringify({backupFilesPath: document.getElementById('path').value, concurrentOpe: parseInt(document.getElementById('maxConnections').value)});
         
 
         response = await fetch(endpoint, {

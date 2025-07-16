@@ -89,7 +89,7 @@ func (dr *DatabaseRepository) GetDatabases() ([]model.MergedDatabaseFileInfo, er
 
 // Performs a BACKUP DATABASE statement, for each database selected, storing into the backup path choosed.
 // The BACKUP DATABASE statements are executed in goroutines, which makes them concurrent
-func (dr *DatabaseRepository) BackupDatabase(backupDbList []model.Database, backupPath string) ([]model.Database, []model.SqlErr) {
+func (dr *DatabaseRepository) BackupDatabase(backupDbList []model.Database, backupPath string, concurrentOpe *int) ([]model.Database, []model.SqlErr) {
 	t0 := time.Now()
 	type BackupResult struct {
 		Database model.Database
@@ -97,11 +97,7 @@ func (dr *DatabaseRepository) BackupDatabase(backupDbList []model.Database, back
 		Success  bool
 	}
 
-	var wg sync.WaitGroup
 	resultCh := make(chan BackupResult, len(backupDbList))
-
-	var dbDoneList []model.Database
-	var errorsList []model.SqlErr
 
 	backupLogFile, err := os.OpenFile("backup.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
@@ -114,50 +110,82 @@ func (dr *DatabaseRepository) BackupDatabase(backupDbList []model.Database, back
 		Level:     slog.LevelInfo,
 	}))
 
-	for _, db := range backupDbList {
-		wg.Add(1)
-		go func(wg *sync.WaitGroup) {
-			defer wg.Done()
+	// Creates a function to perform backups
+	doBackup := func(database model.Database) {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+		defer cancel()
 
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
-			defer cancel()
+		query := fmt.Sprintf("BACKUP DATABASE [%s] TO DISK = @Path", database.Name)
+		path := fmt.Sprintf("%s/%s=%v_%v.bak", backupPath, database.Name,
+			time.Now().Format("2006-01-02"), time.Now().Format("15-04-05"))
 
-			query := fmt.Sprintf("BACKUP DATABASE [%s] TO DISK = @Path", db.Name)
-			path := fmt.Sprintf("%s/%s=%v_%v.bak", backupPath, db.Name, time.Now().Format("2006-01-02"), time.Now().Format("15-04-05"))
-
-			stmt, err := dr.connection.Prepare(query)
-			if err != nil {
-				backupLogger.Error("Error preparing BACKUP query: ", "Query: ", query, "Error: ", err)
-				resultCh <- BackupResult{db, err, false}
-				return
-			}
-
-			_, err = stmt.ExecContext(ctx, sql.Named("Path", path))
-			if err != nil {
-				backupLogger.Error("Error executing BACKUP query: ", "Query: ", query, "Error: ", err)
-				resultCh <- BackupResult{db, err, false}
-				return
-			}
-
-			backupLogger.Info(fmt.Sprintf("Backup related to [%v] database completed", db.Name), "Database:", db.Name)
-			resultCh <- BackupResult{db, nil, true}
-
+		stmt, err := dr.connection.Prepare(query)
+		if err != nil {
+			backupLogger.Error("Error preparing BACKUP query: ", "Query: ", query, "Error: ", err)
+			resultCh <- BackupResult{database, err, false}
 			return
-		}(&wg)
+		}
+		defer stmt.Close()
 
+		_, err = stmt.ExecContext(ctx, sql.Named("Path", path))
+		if err != nil {
+			backupLogger.Error("Error executing BACKUP query: ", "Query: ", query, "Error: ", err)
+			resultCh <- BackupResult{database, err, false}
+			return
+		}
+
+		backupLogger.Info(fmt.Sprintf("Backup related to [%v] database completed", database.Name), "Database:", database.Name)
+		resultCh <- BackupResult{database, nil, true}
 	}
 
-	go func() {
-		wg.Wait()
-		close(resultCh)
-	}()
+	// If any concurrent operation quantity is set...
+	if concurrentOpe != nil && *concurrentOpe > 0 {
+		var wg sync.WaitGroup
+		jobCh := make(chan model.Database, len(backupDbList))
 
-	results := make([]BackupResult, len(backupDbList))
+		// Creates a quantity of physical goroutines, based on the concurrent operation quantity
+		for i := 0; i < *concurrentOpe; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+
+				// Waits to the channel be populated
+				for db := range jobCh {
+					doBackup(db)
+				}
+			}()
+		}
+
+		// Populates the job channel
+		for _, db := range backupDbList {
+			jobCh <- db
+		}
+		close(jobCh)
+
+		go func() {
+			wg.Wait()
+			close(resultCh)
+		}()
+	} else { //If the concurrent operation limit is not set, it creates all the routines.
+		var wg sync.WaitGroup
+		for _, db := range backupDbList {
+			wg.Add(1)
+			go func(database model.Database) {
+				defer wg.Done()
+				doBackup(database)
+			}(db)
+		}
+
+		go func() {
+			wg.Wait()
+			close(resultCh)
+		}()
+	}
+
+	var dbDoneList []model.Database
+	var errorsList []model.SqlErr
+
 	for result := range resultCh {
-		results = append(results, result)
-	}
-
-	for _, result := range results {
 		if result.Success {
 			dbDoneList = append(dbDoneList, result.Database)
 		} else {
@@ -173,26 +201,24 @@ func (dr *DatabaseRepository) BackupDatabase(backupDbList []model.Database, back
 	backupLogger.Info(fmt.Sprintf("Total Backups: %v", len(dbDoneList)))
 
 	return dbDoneList, errorsList
-
 }
 
 // Performs a RESTORE DATABASE statement, for all backup files inside the backup path.
 // The database name is based on the backup file name, as well as the name of the database files (.mdf, .ldf, .ndf)
 // The RESTORE DATABASE statements are executed in goroutines, which makes them concurrent
-func (dr *DatabaseRepository) RestoreDatabase(restoreDbList []model.RestoreDb, dataPath string, logPath string) ([]model.RestoreDb, []model.SqlErr) {
+func (dr *DatabaseRepository) RestoreDatabase(restoreDbList []model.RestoreDb, dataPath string, logPath string, concurrentOpe *int) ([]model.RestoreDb, []model.SqlErr) {
 	t0 := time.Now()
 
 	var restoreDoneDbList []model.RestoreDb
 	var errorsList []model.SqlErr
 
-	type RestoreResult struct {
-		Database model.RestoreDb
-		Error    error
-		Success  bool
+	type restoreResult struct {
+		database model.RestoreDb
+		err      error
+		success  bool
 	}
 
-	var wg sync.WaitGroup
-	resultCh := make(chan RestoreResult, len(restoreDbList))
+	resultCh := make(chan restoreResult, len(restoreDbList))
 
 	restoreLogFile, err := os.OpenFile("restore.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
@@ -205,66 +231,98 @@ func (dr *DatabaseRepository) RestoreDatabase(restoreDbList []model.RestoreDb, d
 		Level:     slog.LevelInfo,
 	}))
 
-	for i, db := range restoreDbList {
-		wg.Add(1)
-		go func(db model.RestoreDb, index int) {
-			defer wg.Done()
+	doRestore := func(db model.RestoreDb) {
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
+		defer cancel()
 
-			ctx, cancel := context.WithTimeout(context.Background(), 15*time.Minute)
-			defer cancel()
-
-			query := fmt.Sprintf("RESTORE DATABASE [%s] FROM DISK = @Path WITH ", db.Database.Name)
-			for _, file := range db.Database.Files {
-				if file.FileType == "ROWS" {
-					if strings.Contains(file.PhysicalName, ".mdf") {
-						query += fmt.Sprintf("MOVE '%s' TO '%s%s.mdf' , ", file.LogicalName, dataPath, db.Database.Name)
-					} else if strings.Contains(file.PhysicalName, ".ndf") {
-						query += fmt.Sprintf("MOVE '%s' TO '%s%s.ndf' , ", file.LogicalName, dataPath, db.Database.Name)
-					}
-
-				} else if file.FileType == "LOG" {
-					query += fmt.Sprintf("MOVE '%s' TO '%s%s.ldf' , ", file.LogicalName, logPath, db.Database.Name)
+		query := fmt.Sprintf("RESTORE DATABASE [%s] FROM DISK = @Path WITH ", db.Database.Name)
+		for _, file := range db.Database.Files {
+			if file.FileType == "ROWS" {
+				if strings.Contains(file.PhysicalName, ".mdf") {
+					query += fmt.Sprintf("MOVE '%s' TO '%s%s.mdf' , ", file.LogicalName, dataPath, db.Database.Name)
+				} else if strings.Contains(file.PhysicalName, ".ndf") {
+					query += fmt.Sprintf("MOVE '%s' TO '%s%s.ndf' , ", file.LogicalName, dataPath, db.Database.Name)
 				}
-			}
-			query += "RECOVERY;"
 
-			stmt, err := dr.connection.Prepare(query)
-			if err != nil {
-				restoreLogger.Error("Error preparing RESTORE query: ", "Query: ", query, "Error: ", err)
-				resultCh <- RestoreResult{Database: db, Error: err, Success: false}
-				return
+			} else if file.FileType == "LOG" {
+				query += fmt.Sprintf("MOVE '%s' TO '%s%s.ldf' , ", file.LogicalName, logPath, db.Database.Name)
 			}
-			_, err = stmt.ExecContext(ctx, sql.Named("Path", db.BackupPath))
-			if err != nil {
-				restoreLogger.Error("Error executing RESTORE query: ", "Query: ", query, "Error: ", err)
-				resultCh <- RestoreResult{Database: db, Error: err, Success: false}
-				return
-			}
+		}
+		query += "RECOVERY;"
 
-			restoreLogger.Info(fmt.Sprintf("Restore related to [%v] database completed", db.Database.Name), "Database:", db.Database.Name)
-			resultCh <- RestoreResult{Database: db, Error: nil, Success: true}
-
+		stmt, err := dr.connection.Prepare(query)
+		if err != nil {
+			restoreLogger.Error("Error preparing RESTORE query: ", "Query: ", query, "Error: ", err)
+			resultCh <- restoreResult{database: db, err: err, success: false}
 			return
+		}
+		_, err = stmt.ExecContext(ctx, sql.Named("Path", db.BackupPath))
+		if err != nil {
+			restoreLogger.Error("Error executing RESTORE query: ", "Query: ", query, "Error: ", err)
+			resultCh <- restoreResult{database: db, err: err, success: false}
+			return
+		}
 
-		}(db, i)
+		restoreLogger.Info(fmt.Sprintf("Restore related to [%v] database completed", db.Database.Name), "Database:", db.Database.Name)
+		resultCh <- restoreResult{database: db, err: nil, success: true}
 
+		return
 	}
 
-	go func() {
-		wg.Wait()
-		close(resultCh)
-	}()
+	// If any concurrent operation quantity is set...
+	if concurrentOpe != nil && *concurrentOpe > 0 {
+		var wg sync.WaitGroup
+		jobCh := make(chan model.RestoreDb, len(restoreDbList))
 
-	results := make([]RestoreResult, len(restoreDbList))
+		// Creates a quantity of physical goroutines, based on the concurrent operation quantity
+		for i := 0; i < *concurrentOpe; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+
+				// Waits to the channel be populated
+				for db := range jobCh {
+					doRestore(db)
+				}
+			}()
+		}
+
+		// Populates the job channel
+		for _, db := range restoreDbList {
+			jobCh <- db
+		}
+		close(jobCh)
+
+		go func() {
+			wg.Wait()
+			close(resultCh)
+		}()
+	} else { //If the concurrent operation limit is not set, it creates all the routines.
+		var wg sync.WaitGroup
+		for _, db := range restoreDbList {
+			wg.Add(1)
+			go func(database model.RestoreDb) {
+				defer wg.Done()
+				doRestore(database)
+			}(db)
+		}
+
+		go func() {
+			wg.Wait()
+			close(resultCh)
+		}()
+	}
+
+	results := make([]restoreResult, len(restoreDbList))
 	for result := range resultCh {
 		results = append(results, result)
 	}
 
 	for _, result := range results {
-		if result.Success {
-			restoreDoneDbList = append(restoreDoneDbList, result.Database)
+		if result.success {
+			restoreDoneDbList = append(restoreDoneDbList, result.database)
 		} else {
-			sqlErr := model.NewSqlErr(result.Database.Database.Name, result.Error)
+			sqlErr := model.NewSqlErr(result.database.Database.Name, result.err)
 			if sqlErr != nil {
 				errorsList = append(errorsList, *sqlErr)
 			}

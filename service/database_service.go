@@ -109,7 +109,7 @@ func (ds *DatabaseService) GetDatabases() ([]model.Database, error) {
 
 // Starts the backup, for each database selected, storing into the backup path chosen.
 // Before it calls the repository.BackupDatabase() function, it checks if the connection is set.
-func (ds *DatabaseService) BackupDatabase(backupDbList []model.Database, backupPath string) ([]model.Database, []model.SqlErr, error, string) {
+func (ds *DatabaseService) BackupDatabase(backupDbList []model.Database, backupPath string, concurrentOpe *int) ([]model.Database, []model.SqlErr, error, string) {
 	t0 := time.Now()
 	err := ds.CheckDbConn()
 	if err != nil {
@@ -140,7 +140,7 @@ func (ds *DatabaseService) BackupDatabase(backupDbList []model.Database, backupP
 	}
 
 	slog.Info("Starting backup...", "Databases", backupDbList, "Backup path", backupPath)
-	backupDbDoneList, errBackup := ds.repository.BackupDatabase(allowedDbs, backupPath)
+	backupDbDoneList, errBackup := ds.repository.BackupDatabase(allowedDbs, backupPath, concurrentOpe)
 	if len(bannedDbs) > 0 {
 		errBackup = append(errBackup, bannedDbs...)
 	}
@@ -157,7 +157,7 @@ func (ds *DatabaseService) BackupDatabase(backupDbList []model.Database, backupP
 
 // Starts the backup, for each database selected, storing into the backup path chosen.
 // Before it calls the repository.RestoreDatabase() function, it checks if the connection is set, gets the backup file data, mounts the database object and gets the default data files path
-func (ds *DatabaseService) RestoreDatabase(backupFilesPath string) ([]model.RestoreDb, []model.SqlErr, error, string) {
+func (ds *DatabaseService) RestoreDatabase(backupFilesPath string, concurrentOpe *int) ([]model.RestoreDb, []model.SqlErr, error, string) {
 	t0 := time.Now()
 	err := ds.CheckDbConn()
 	if err != nil {
@@ -184,8 +184,13 @@ func (ds *DatabaseService) RestoreDatabase(backupFilesPath string) ([]model.Rest
 	// Gets the dir where the backup files are allocated
 	dir, err := os.ReadDir(backupFilesPath)
 	if err != nil {
-		slog.Error("Cannot get the directory: ", "Error: ", err)
+		slog.Error("Cannot get the directory: ", "Path", backupFilesPath, "Error: ", err)
 		return nil, nil, err, ""
+	}
+
+	if !(len(dir) > 0) {
+		slog.Error("Backup folder is empty: ", "Path", backupFilesPath, "Error: ", err)
+		return nil, nil, fmt.Errorf("Backup folder is empty %v", backupFilesPath), ""
 	}
 
 	sanitizedErrors := make([]model.SqlErr, 0, len(dir))
@@ -271,7 +276,7 @@ func (ds *DatabaseService) RestoreDatabase(backupFilesPath string) ([]model.Rest
 	}
 
 	slog.Info("Starting restore...", "Databases: ", restoreDatabaseList, "Data path: ", dataPath, "Log path:", "Log path")
-	restoredDatabases, errRestoreList := ds.repository.RestoreDatabase(restoreDatabaseList, dataPath, logPath)
+	restoredDatabases, errRestoreList := ds.repository.RestoreDatabase(restoreDatabaseList, dataPath, logPath, concurrentOpe)
 	totalTime := fmt.Sprintf("%dh%dm%ds", int(time.Since(t0).Hours()), int(time.Since(t0).Minutes())%60, int(time.Since(t0).Seconds())%60)
 	errRestoreList = append(errRestoreList, sanitizedErrors...)
 	if errRestoreList != nil {

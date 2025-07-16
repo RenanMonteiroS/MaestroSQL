@@ -60,11 +60,6 @@ type DatabaseFromBackupFile struct {
 	BackupFileInfo []BackupDataFile
 }
 
-// BackupFiles is a set of Path. Its populated by JSON, via HTTP request. Expects a backupFilesPath in the request body.
-type BackupFiles struct {
-	Path string `json:"backupFilesPath"`
-}
-
 // RestoreDb is a set of BackupPath and Database. Its used to return the RESTORE DATABASE completed.
 type RestoreDb struct {
 	BackupPath string   `json:"backupPath"`

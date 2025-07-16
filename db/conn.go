@@ -50,9 +50,9 @@ func ConnDb(connInfo model.ConnInfo) (*sql.DB, error) {
 
 	slog.Info("Trying to connect to the database: ", "ConnInfo", connInfo)
 
-	if connInfo.MaxConnections != 0 {
+	/* if connInfo.MaxConnections != 0 {
 		db.SetMaxOpenConns(connInfo.MaxConnections)
-	}
+	} */
 
 	// Checks the database connection
 	err = db.Ping()
