@@ -55,9 +55,14 @@
 }
 body {
     background-color: #f8f9fa;
+    padding-bottom: 60px;
 }
- .user-menu {
-    position: relative;
+.footer {
+    width: 100%;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    z-index: 1030;                                      
 }
 .user-menu .dropdown-menu {
     min-width: 280px;

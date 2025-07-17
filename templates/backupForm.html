@@ -344,7 +344,8 @@
           <div class="modal-body" id="resultModalBody">
             <!-- Content will be populated via JavaScript -->
           </div>
-          <div class="modal-footer">
+          <div class="modal-footer justify-content-between">
+            <button type="button" class="btn btn-outline-secondary" onclick="resetToHome()"><i class="fas fa-home"></i></button>
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{{call .T "resultModalCloseButton"}}</button>
           </div>
         </div>
@@ -412,6 +413,16 @@
         };
     </script>
     <script src="/static/js/backupForm.js"></script>
+                                                                                                                                                                 
+    <footer class="footer bg-dark text-white text-center py-2">
+       <div class="container">                                                                                                                                 
+            <span>&copy; 2024 Renan Monteiro |                                                                                                                  
+                <a href="https://github.com/RenanMonteiroS/MaestroSQL" target="_blank" class="text-white" style="text-decoration: none;">                       
+                    <i class="fab fa-github"></i> GitHub                                                                                                        
+                </a>                                                                                                                                            
+            </span>                                                                                                                                             
+        </div>                                                                                                                                                  
+    </footer> 
     </body>
 </html>
 {{ end }}

@@ -340,6 +340,31 @@ function toggleAllBackupSelection(source) {
 }
 
 /**
+ * Resets the entire form to the initial state (Step 1).
+ * Closes the result modal, clears dynamic content, and updates navigation.
+*/
+function resetToHome() {
+    const resultModal = bootstrap.Modal.getInstance(document.getElementById('resultModal'));
+    resultModal.hide();
+
+    // Reset to the first step
+    currentStep = 1;
+
+    // Clear dynamic content from steps 3 and 4
+    document.querySelector('#step-3 .row').innerHTML = '';
+    document.getElementById('databaseSelectButtons').innerHTML = '';
+    document.getElementById('backup-path').innerHTML = '';
+    document.getElementById('backup-files-table').innerHTML = '';
+    document.getElementById('summary-content').innerHTML = '';
+
+    // Reset connection form fields (optional, but good practice)
+    document.getElementById('connection-form').reset();
+
+    // Update navigation and buttons visibility
+    updateStepNavigation();
+}
+
+/**
  * Returns to the last step. If the step is the latest, if changes the button class to ensure the button is pressable again
 */
 function previousStep() {
