@@ -65,3 +65,19 @@ type RestoreDb struct {
 	BackupPath string   `json:"backupPath"`
 	Database   Database `json:"database"`
 }
+
+// BackupFileInfo contains information about a backup file
+type BackupFileInfo struct {
+	FileName      string `json:"fileName"`
+	DefaultDbName string `json:"defaultDbName"`
+}
+
+type ToBeRestoredDb struct {
+	Name       string `json:"name" binding:"required"`
+	BackupPath string `json:"backupPath" binding:"required"`
+}
+
+type RestorePostRequired struct {
+	Databases     []ToBeRestoredDb `json:"databases" binding:"required"`
+	ConcurrentOpe *int             `json:"concurrentOpe,omitempty"`
+}

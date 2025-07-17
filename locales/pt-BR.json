@@ -42,8 +42,8 @@
   "operationSummary": "Resumo da operação",
   "verifyInfo": "Por favor, verifique todas as informações antes de realizar a operação.",
   "previous": "Anterior",
-    "cancel": "Cancelar",
-    "next": "Próximo",
+  "cancel": "Cancelar",
+  "next": "Próximo",
   "executeOperation": "Executar operação",
   "userAuthenticatedSuccess": "Usuário {email} autenticado com sucesso!",
   "authenticationError": "Erro de autenticação: {errorMessage}",
@@ -92,5 +92,13 @@
   "resultModalCloseButton": "Fechar",
   "resultModalTotalTime": "Tempo Total",
   "resultModalTotalBackup": "Total de Backups",
-  "resultModalTotalError": "Total de Erros"
+  "resultModalTotalError": "Total de Erros",
+  "listBackups": "Listar Backups",
+  "fillBackupPathError": "Por favor, preencha o caminho dos backups.",
+  "noBackupFilesFound": "Nenhum arquivo de backup (.bak) encontrado no diretório especificado.",
+  "backupFile": "Arquivo de Backup",
+  "databaseName": "Nome do Banco",
+  "errorListingBackups": "Erro ao listar backups: {errorMessage}",
+  "selectOneBackupError": "Por favor, selecione pelo menos um arquivo de backup para restaurar.",
+  "summarySelectedDatabasesRestore": "Bancos de dados a serem restaurados ({count})"
 }

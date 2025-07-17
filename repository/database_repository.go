@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -372,13 +371,13 @@ func (dr *DatabaseRepository) GetDefaultFilesPath() (string, string, error) {
 // it will restore the database using the previous data. Therefore, if the database was previously located in /var/opt/mssql/,
 // even if the restore is being performed on a Windows server, it will attempt to restore the files in /var/opt/mssql/. Also, RESTORE DATABASE expects the original
 // logical name of the database file. That's when RESTORE FILELISTONLY helps.
-func (dr *DatabaseRepository) GetBackupFilesData(backupFiles []string) ([]model.DatabaseFromBackupFile, error) {
+func (dr *DatabaseRepository) GetBackupFilesData(restoreDbList []model.ToBeRestoredDb) ([]model.DatabaseFromBackupFile, error) {
 	var restoreDatabaseInfo model.BackupDataFile
 	var restoreDatabaseInfoList []model.DatabaseFromBackupFile
 
 	var restoreDatabase model.DatabaseFromBackupFile
 
-	for _, backupFile := range backupFiles {
+	for _, db := range restoreDbList {
 		query := "RESTORE FILELISTONLY FROM DISK = @Path;"
 
 		stmt, err := dr.connection.Prepare(query)
@@ -387,7 +386,7 @@ func (dr *DatabaseRepository) GetBackupFilesData(backupFiles []string) ([]model.
 			return nil, err
 		}
 
-		rows, err := stmt.Query(sql.Named("Path", backupFile))
+		rows, err := stmt.Query(sql.Named("Path", db.BackupPath))
 		if err != nil {
 			slog.Error("Error executing RESTORE FILELISTONLY query: ", "Query: ", query, "Error: ", err)
 			return nil, err
@@ -403,8 +402,8 @@ func (dr *DatabaseRepository) GetBackupFilesData(backupFiles []string) ([]model.
 			if err != nil {
 				return nil, err
 			}
-			restoreDatabase.Name = filepath.Base(backupFile)
-			restoreDatabase.BackupFilePath = backupFile
+			restoreDatabase.Name = db.Name
+			restoreDatabase.BackupFilePath = db.BackupPath
 
 			restoreDatabase.BackupFileInfo = append(restoreDatabase.BackupFileInfo, restoreDatabaseInfo)
 

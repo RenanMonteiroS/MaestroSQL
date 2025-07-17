@@ -157,7 +157,7 @@ func (ds *DatabaseService) BackupDatabase(backupDbList []model.Database, backupP
 
 // Starts the backup, for each database selected, storing into the backup path chosen.
 // Before it calls the repository.RestoreDatabase() function, it checks if the connection is set, gets the backup file data, mounts the database object and gets the default data files path
-func (ds *DatabaseService) RestoreDatabase(backupFilesPath string, concurrentOpe *int) ([]model.RestoreDb, []model.SqlErr, error, string) {
+func (ds *DatabaseService) RestoreDatabase(restoreDbList []model.ToBeRestoredDb, concurrentOpe *int) ([]model.RestoreDb, []model.SqlErr, error, string) {
 	t0 := time.Now()
 	err := ds.CheckDbConn()
 	if err != nil {
@@ -165,70 +165,32 @@ func (ds *DatabaseService) RestoreDatabase(backupFilesPath string, concurrentOpe
 		return []model.RestoreDb{}, []model.SqlErr{}, fmt.Errorf("Connection failed. Try to /connect.\nDetails: %v", err), ""
 	}
 
-	var backupsFullPathList []string
-
 	var database model.RestoreDb
 	var restoreDatabaseList []model.RestoreDb
+	sanitizedErrors := make([]model.SqlErr, 0, len(restoreDbList))
 
-	ok, err := regexp.MatchString(`^[a-zA-Z0-9._\-/\\\s:(){}\[\]@#$%^&+=~]+$`, backupFilesPath)
-	if err != nil {
-		slog.Error("Cannot search string with regexp", "Error", err)
-		return nil, nil, err, ""
-	}
-
-	if !ok {
-		slog.Error("There is an invalid character in the filesystem path", "Path", backupFilesPath)
-		return nil, nil, fmt.Errorf("There is an invalid character in the filesystem path %v", backupFilesPath), ""
-	}
-
-	// Gets the dir where the backup files are allocated
-	dir, err := os.ReadDir(backupFilesPath)
-	if err != nil {
-		slog.Error("Cannot get the directory: ", "Path", backupFilesPath, "Error: ", err)
-		return nil, nil, err, ""
-	}
-
-	if !(len(dir) > 0) {
-		slog.Error("Backup folder is empty: ", "Path", backupFilesPath, "Error: ", err)
-		return nil, nil, fmt.Errorf("Backup folder is empty %v", backupFilesPath), ""
-	}
-
-	sanitizedErrors := make([]model.SqlErr, 0, len(dir))
-	// For each file with ".bak" extension, inserts the file into a list
-	for _, file := range dir {
-		if filepath.Ext(file.Name()) == ".bak" {
-			ok, err := regexp.MatchString("^[a-zA-Z0-9_#$@.-]+$", file.Name())
-			if err != nil {
-				slog.Error("Cannot search string with regexp", "Error", err)
-				return nil, nil, err, ""
-			}
-			if !ok {
-				slog.Error("There is an invalid character in the database name", "File", file.Name())
-				sanitizedErrors = append(sanitizedErrors, model.SqlErr{Database: strings.Split(file.Name(), ".bak")[0], Err: fmt.Errorf("There is an invalid character in the database name")})
-				continue
-			}
-
-			backupsFullPathList = append(backupsFullPathList, fmt.Sprintf("%s%s", backupFilesPath, file.Name()))
-
-		} else if filepath.Ext(file.Name()) == ".BAK" {
-			ok, err := regexp.MatchString("^[a-zA-Z0-9_#$@.-]+$", file.Name())
-			if err != nil {
-				slog.Error("Cannot search string with regexp", "Error", err)
-				return nil, nil, err, ""
-			}
-			if !ok {
-				slog.Error("There is an invalid character in the database name", "File", file.Name())
-				sanitizedErrors = append(sanitizedErrors, model.SqlErr{Database: strings.Split(file.Name(), ".bak")[0], Err: fmt.Errorf("There is an invalid character in the database name")})
-				continue
-			}
-
-			backupsFullPathList = append(backupsFullPathList, fmt.Sprintf("%s%s", backupFilesPath, strings.Split(file.Name(), ".BAK")[0])+".bak")
+	for _, db := range restoreDbList {
+		ok, err := regexp.MatchString(`^[a-zA-Z0-9_#$@.-]+$`, db.Name)
+		if err != nil {
+			slog.Error("Cannot search string with regexp", "Error", err)
+			return nil, nil, err, ""
+		}
+		if !ok {
+			slog.Error("There is an invalid character in the database name", "Database", db.Name)
+			sanitizedErrors = append(sanitizedErrors, model.SqlErr{Database: db.Name, Err: fmt.Errorf("There is an invalid character in the database name")})
+		}
+		ok, err = regexp.MatchString(`^[a-zA-Z0-9._\-/\\\s:(){}\[\]@#$%^&+=~]+$`, db.BackupPath)
+		if err != nil {
+			slog.Error("Cannot search string with regexp", "Error", err)
+			return nil, nil, err, ""
+		}
+		if !ok {
+			slog.Error("There is an invalid character in the backup path", "Path", db.BackupPath)
+			sanitizedErrors = append(sanitizedErrors, model.SqlErr{Database: db.Name, Err: fmt.Errorf("There is an invalid character in the backup path %v", db.BackupPath)})
 		}
 	}
 
-	slog.Info("backup files read successfully: ", "Files: ", "backupsFullPathList")
-
-	backupFilesData, err := ds.repository.GetBackupFilesData(backupsFullPathList)
+	backupFilesData, err := ds.repository.GetBackupFilesData(restoreDbList)
 	if err != nil {
 		slog.Warn("Cannot get backup files data (RESTORE FILELISTONLY): ", "Error: ", err)
 		return nil, nil, err, ""
@@ -287,4 +249,46 @@ func (ds *DatabaseService) RestoreDatabase(backupFilesPath string, concurrentOpe
 	slog.Info("Restore completed sucessfully: ", "Completed restores: ", restoredDatabases)
 	return restoredDatabases, nil, nil, totalTime
 
+}
+
+// ListBackupFiles gets all .bak files from a given path
+func (ds *DatabaseService) ListBackupFiles(path string) ([]model.BackupFileInfo, error) {
+	ok, err := regexp.MatchString(`^[a-zA-Z0-9._\-/\\s:(){}\[\]@#$%^&+=~]`, path)
+	if err != nil {
+		slog.Error("Cannot search string with regexp", "Path", path, "Error", err)
+		return nil, err
+	}
+
+	if !ok {
+		slog.Error("There is an invalid character in the filesystem path", "Path", path)
+		return nil, fmt.Errorf("There is an invalid character in the filesystem path %v", path)
+	}
+
+	dir, err := os.ReadDir(path)
+	if err != nil {
+		slog.Error("Cannot get the directory: ", "Path", path, "Error: ", err)
+		return nil, err
+	}
+
+	if !(len(dir) > 0) {
+		slog.Error("Backup folder is empty: ", "Path", path, "Error: ", err)
+		return nil, fmt.Errorf("Backup folder is empty %v", path)
+	}
+
+	var backupFiles []model.BackupFileInfo
+
+	for _, file := range dir {
+		if filepath.Ext(file.Name()) == ".bak" || filepath.Ext(file.Name()) == ".BAK" {
+			fileName := file.Name()
+			dbName := strings.TrimSuffix(fileName, filepath.Ext(fileName))
+			dbName = strings.Split(dbName, "=")[0]
+			backupFiles = append(backupFiles, model.BackupFileInfo{
+				FileName:      fileName,
+				DefaultDbName: dbName,
+			})
+		}
+	}
+
+	slog.Info("Backup files read successfully: ", "Files: ", backupFiles)
+	return backupFiles, nil
 }

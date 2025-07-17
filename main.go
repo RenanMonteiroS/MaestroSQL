@@ -143,6 +143,7 @@ func main() {
 		protected.GET("/databases", DatabaseController.GetDatabases)
 		protected.POST("/backup", DatabaseController.BackupDatabase)
 		protected.POST("/restore", DatabaseController.RestoreDatabase)
+		protected.POST("/list-backups", DatabaseController.ListBackups)
 	}
 
 	if config.AppCertificateUsage {

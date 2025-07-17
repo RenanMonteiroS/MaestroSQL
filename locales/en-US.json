@@ -93,5 +93,13 @@
   "resultModalCloseButton": "Close",
   "resultModalTotalTime": "Total Time",
   "resultModalTotalBackup": "Total Backups",
-  "resultModalTotalError": "Total Errors"
+  "resultModalTotalError": "Total Errors",
+  "listBackups": "List Backups",
+  "fillBackupPathError": "Please fill in the backup path.",
+  "noBackupFilesFound": "No backup files (.bak) found in the specified directory.",
+  "backupFile": "Backup File",
+  "databaseName": "Database Name",
+  "errorListingBackups": "Error listing backups: {errorMessage}",  
+  "selectOneBackupError": "Please select at least one backup file to restore.",
+  "summarySelectedDatabasesRestore": "Databases to be restored ({count})"
 }

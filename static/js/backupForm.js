@@ -52,7 +52,7 @@ async function modalLogin() {
             body: JSON.stringify(userDataPayload)
         });
 
-        const result = {"status": await response.status, "body": await response.json()};
+        const result = {"status": response.status, "body": await response.json()};
 
         if (!response.ok) {
             throw new Error(`${result.body.errors.osiMsg || result.body.errors.request}`);
@@ -181,7 +181,7 @@ async function nextStep() {
                 body: JSON.stringify(connectionData)
             });
 
-            const result = {"status": await response.status, "body": await response.json()};
+            const result = {"status": response.status, "body": await response.json()};
 
             if (!response.ok) {
                 if (response.status == 401) {
@@ -229,8 +229,7 @@ async function nextStep() {
                 </div>`;
             
             await loadDatabases();
-        }
-        else if (currentStep === 3 && document.querySelector('input[name="operation"]:checked').value === 'restore') {
+        } else if (currentStep === 3 && document.querySelector('input[name="operation"]:checked').value === 'restore') {
             const databaseContainer = document.querySelector('#step-3 .row');
             const databaseSelectButtons = document.querySelector("#databaseSelectButtons");
             const backupPath = document.querySelector("#backup-path");
@@ -238,17 +237,106 @@ async function nextStep() {
             databaseContainer.innerHTML = '';
             databaseSelectButtons.innerHTML = '';
             backupPath.innerHTML = 
-                `<div class="col-md-12 mb-3">
+                 `<div class="col-md-12 mb-3">
                         <label for="path" class="form-label">${window.appConfig.translations.backupsPath}</label>
                         <i class="fas fa-info-circle info-icon" 
                                 data-bs-toggle="tooltip" 
                                 data-bs-placement="right" 
                                 title=${window.appConfig.translations.backupsPathTooltipRestore}">
                         </i>
-                        <input type="text" class="form-control" id="path" placeholder="C:/Backups/">
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="path" placeholder="C:/Backups/">
+                            <button class="btn btn-outline-secondary" type="button" id="list-backups-btn" onclick="listBackups()">${window.appConfig.translations.listBackups}</button>
+                        </div>
                 </div>`;
         }
     }
+}
+
+/**
+ * Makes a POST request to the backend, collecting all the .bak files in the given path and generating the dynamic HTML content
+ * @throws {Error} Throws an error then the backend returns a bad HTTP status code
+*/
+async function listBackups() {
+    const path = document.getElementById('path').value;
+    if (!path) {
+        alert(window.appConfig.translations.fillBackupPathError);
+        return;
+    }
+
+    const listBtn = document.getElementById('list-backups-btn');
+    const originalText = listBtn.innerHTML;
+    const tableContainer = document.getElementById('backup-files-table');
+
+    try {
+        listBtn.innerHTML = `<i class="fas fa-spinner fa-spin me-1"></i> ${window.appConfig.translations.loading}`;
+        listBtn.disabled = true;
+
+        const response = await fetch(`/list-backups`, {
+            method: 'POST',
+            headers: getHeaders(),
+            body: JSON.stringify({ backupFilesPath: path })
+        });
+
+        const result = await response.json();
+
+        if (!response.ok) {
+            if (response.status == 401) {
+                authModal.show();
+            }
+            throw new Error(result.errors.listBackups || result.message);
+        }
+
+        const files = result.data.backupFiles;
+        if (!files || files.length === 0) {
+            tableContainer.innerHTML = `<div class="alert alert-warning">${window.appConfig.translations.noBackupFilesFound}</div>`;
+            return;
+        }
+
+        let tableHTML = `
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" id="select-all-backups" onchange="toggleAllBackupSelection(this)" checked></th>
+                        <th>${window.appConfig.translations.backupFile}</th>
+                        <th>${window.appConfig.translations.databaseName}</th>
+                    </tr>
+                </thead>
+                <tbody>
+        `;
+
+        files.forEach(file => {
+            tableHTML += `
+                <tr>
+                    <td><input type="checkbox" class="backup-checkbox" value="${file.fileName}" checked></td>
+                    <td>${file.fileName}</td>
+                    <td><input type="text" class="form-control" value="${file.defaultDbName}"></td>
+                </tr>
+            `;
+        });
+
+        tableHTML += `
+                </tbody>
+            </table>
+        `;
+
+        tableContainer.innerHTML = tableHTML;
+
+    } catch (error) {
+        console.error('Error listing backups:', error.message);
+        alert(window.appConfig.translations.errorListingBackups.replace("{errorMessage}", error.message));
+        tableContainer.innerHTML = `<div class="alert alert-danger">${window.appConfig.translations.errorListingBackups.replace("{errorMessage}", error.message)}</div>`;
+    } finally {
+        listBtn.innerHTML = originalText;
+        listBtn.disabled = false;
+    }
+}
+
+function toggleAllBackupSelection(source) {
+    const checkboxes = document.querySelectorAll('.backup-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = source.checked;
+    });
 }
 
 /**
@@ -260,6 +348,14 @@ function previousStep() {
         executeBtn.disabled = false;
         executeBtn.className = 'btn btn-success';
         executeBtn.innerHTML = `<i class="fas fa-play me-1"></i> ${window.appConfig.translations.executeOperation}`;
+        document.getElementById('summary-content').innerHTML = '';
+    }
+
+    if (currentStep === 3) {
+        document.querySelector('#step-3 .row').innerHTML = '';
+        document.getElementById('databaseSelectButtons').innerHTML = '';
+        document.getElementById('backup-path').innerHTML = '';
+        document.getElementById('backup-files-table').innerHTML = '';
     }
 
     if (currentStep > 1) {
@@ -295,10 +391,19 @@ function validateCurrentStep() {
             return true;
         
         case 3:
-            const databases = document.querySelectorAll('input[type="checkbox"]:checked');
-            if (databases.length === 0 && document.querySelector('input[name="operation"]:checked').value === 'backup' ) {
-                alert(window.appConfig.translations.selectOneDatabaseError);
-                return false;
+            const ope = document.querySelector('input[name="operation"]:checked').value;
+            if (ope === 'backup') {
+                const databases = document.querySelectorAll('#step-3 input[type="checkbox"]:checked');
+                if (databases.length === 0) {
+                    alert(window.appConfig.translations.selectOneDatabaseError);
+                    return false;
+                }
+            } else if (ope === 'restore') {
+                const selectedBackups = document.querySelectorAll('#backup-files-table .backup-checkbox:checked');
+                if (selectedBackups.length === 0) {
+                    alert(window.appConfig.translations.selectOneBackupError);
+                    return false;
+                }
             }
             return true;
         
@@ -417,8 +522,6 @@ function generateSummary() {
     const user = document.getElementById('user').value;
     const path = document.getElementById('path').value;
     const operation = document.querySelector('input[name="operation"]:checked').value;
-    const selectedDatabases = Array.from(document.querySelectorAll('#step-3 input[type="checkbox"]:checked'))
-        .map(cb => cb.nextElementSibling.textContent.trim());
 
     let summaryHTML = `
         <div class="summary-item">
@@ -458,6 +561,9 @@ function generateSummary() {
     `;
 
     if (operation === 'backup') {
+        const selectedDatabases = Array.from(document.querySelectorAll('#step-3 input[type="checkbox"]:checked'))
+        .map(cb => cb.nextElementSibling.textContent.trim());
+
         summaryHTML += `<div class="summary-item">
                 <div class="summary-label">
                     <i class="fas fa-database me-2"></i>
@@ -467,6 +573,22 @@ function generateSummary() {
                     ${selectedDatabases.map(db => `<span class="badge bg-primary me-1 mb-1">${db}</span>`).join('')}
                 </div>
             </div>`;
+    } else if (operation === 'restore') {
+        const selectedRows = Array.from(document.querySelectorAll('#backup-files-table .backup-checkbox:checked'));
+        const selectedDbs = selectedRows.map(row => {
+            const tableRow = row.closest('tr');
+            return tableRow.querySelector('input[type="text"').value;
+        });
+
+        summaryHTML += `<div class="summary-item">
+            <div class="summary-label">
+                <i class="fas fa-database me-2"></i>
+                ${window.appConfig.translations.summarySelectedDatabasesRestore.replace("{count}", selectedDbs.length)}
+            </div>
+            <div class="summary-value">
+                ${selectedDbs.map(db => `<span class="badge bg-primary me-1 mb-1">${db}</span>`).join('')}
+            </div>
+        </div>`;
     }
 
     document.getElementById('summary-content').innerHTML = summaryHTML;
@@ -601,19 +723,40 @@ async function executeOperation() {
     //cancelBtn.classList.remove('d-none');
 
     try {
-        const requestData = {
-            databases: 
-                selectedDatabases.map(db => {
-                    return {"name": db}
-                }),
-            path: document.getElementById('path').value,
-            concurrentOpe: parseInt(document.getElementById('maxConnections').value)
-        };
-
         let response;
         let endpoint = operation === 'backup' ? '/backup' : '/restore';
-        let body = operation === 'backup' ? JSON.stringify(requestData) : JSON.stringify({backupFilesPath: document.getElementById('path').value, concurrentOpe: parseInt(document.getElementById('maxConnections').value)});
-        
+        let body;
+
+        if (operation === 'backup') {
+            const requestData = {
+                databases: 
+                    selectedDatabases.map(db => {
+                        return {"name": db}
+                    }),
+                path: document.getElementById('path').value,
+                concurrentOpe: parseInt(document.getElementById('maxConnections').value)
+            };
+            body = JSON.stringify(requestData);
+        } else if (operation === 'restore') {
+            const selectedRows = Array.from(document.querySelectorAll('#backup-files-table .backup-checkbox:checked'));
+            const restoreData = {}
+            restoreData.databases = selectedRows.map(row => {
+                const tableRow = row.closest('tr');
+                const backupFileName = row.value;
+                const dbName = tableRow.querySelector('input[type="text"').value;
+                const backupPath = document.getElementById('path').value;
+                const fullPath = backupPath.endsWith('/') || backupPath.endsWith('\\') ? backupPath : backupPath + '/';
+
+                return {
+                    name: dbName,
+                    backupPath: fullPath + backupFileName,
+                };
+            })
+            restoreData.concurrentOpe = parseInt(document.getElementById('maxConnections').value);
+            console.log("restoreData: ", JSON.stringify(restoreData));
+            body = JSON.stringify(restoreData);
+            console.log(body);
+        }
 
         response = await fetch(endpoint, {
             method: 'POST',
@@ -635,7 +778,7 @@ async function executeOperation() {
         btn.innerHTML = originalText;
         btn.disabled = false;
         prevBtn.classList.remove('d-none');
-        cancelBtn.classList.add('d-none');
+        //cancelBtn.classList.add('d-none');
     }
 }
 

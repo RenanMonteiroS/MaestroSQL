@@ -285,6 +285,9 @@
                         <div class="mt-3" id="backup-path">
                                                        
                         </div>
+                        <div class="mt-3" id="backup-files-table">
+                            
+                        </div>
                     </div>
 
                     <!-- Step 4: Summary -->
@@ -395,7 +398,16 @@
                 resultModalBackupPath: {{ call .T "resultModalBackupPath" }},
                 resultModalTotalTime: {{ call .T "resultModalTotalTime" }},
                 resultModalTotalError: {{ call .T "resultModalTotalError" }},
-                resultModalTotalBackup: {{ call .T "resultModalTotalBackup" }}
+                resultModalTotalBackup: {{ call .T "resultModalTotalBackup" }},
+                listBackups: {{ call .T "listBackups" }},
+                fillBackupPathError: {{ call .T "fillBackupPathError" }},
+                noBackupFilesFound: {{ call .T "noBackupFilesFound" }},
+                backupFile: {{ call .T "backupFile" }},
+                databaseName: {{ call .T "databaseName" }},
+                errorListingBackups: {{ call .T "errorListingBackups" }},
+                selectOneBackupError: {{ call .T "selectOneBackupError" }},
+                summarySelectedDatabasesRestore: {{ call .T "summarySelectedDatabasesRestore" }},
+                backupsPathTooltipRestore: {{ call .T "backupsPathTooltipRestore" }}
             }
         };
     </script>
