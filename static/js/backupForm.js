@@ -55,7 +55,8 @@ async function modalLogin() {
         const result = {"status": response.status, "body": await response.json()};
 
         if (!response.ok) {
-            throw new Error(`${result.body.errors.osiMsg || result.body.errors.request}`);
+            const err = result.body?.errors?.osiMsg || result.body?.errors?.request || result.body.message;
+            throw new Error(`${err}`);
         }
 
         document.getElementById('modalMfaToken').value = "";
@@ -175,7 +176,7 @@ async function nextStep() {
                 trustServerCertificate: document.getElementById('trustServerCertificate').checked ? true : false
             };
 
-            const response = await fetch(`/connect`, {
+            const response = await fetch(`/api/connect`, {
                 method: 'POST',
                 headers: getHeaders(),
                 body: JSON.stringify(connectionData)
@@ -184,16 +185,18 @@ async function nextStep() {
             const result = {"status": response.status, "body": await response.json()};
 
             if (!response.ok) {
+                const err = result.body?.errors?.connect || result.body.message;
                 if (response.status == 401) {
                     authModal.show();
-                    throw new Error(`${result.body.message}`);
+                    throw new Error(`${err}`);
                 }
-                throw new Error(`${result.body.errors.connect}`);
+                throw new Error(`${err}`);
             }
 
             console.log(`Connection established: ${result.body.message}. Server: ${result.body.data.server}`);
             
         } catch (error) {
+            console.log("Error: ", error)
             console.error('Error connecting:', error.message);
             alert(window.appConfig.translations.connectionError.replace("{errorMessage}", error.message));
             connectBtn.innerHTML = originalText;
@@ -272,7 +275,7 @@ async function listBackups() {
         listBtn.innerHTML = `<i class="fas fa-spinner fa-spin me-1"></i> ${window.appConfig.translations.loading}`;
         listBtn.disabled = true;
 
-        const response = await fetch(`/list-backups`, {
+        const response = await fetch(`/api/list-backups`, {
             method: 'POST',
             headers: getHeaders(),
             body: JSON.stringify({ backupFilesPath: path })
@@ -457,7 +460,7 @@ async function loadDatabases() {
         `;
 
         //Fetchs the backend /databases endpoint
-        const response = await fetch(`/databases`, {
+        const response = await fetch(`/api/databases`, {
             method: 'GET',
             headers: getHeaders(),
         });
@@ -749,7 +752,7 @@ async function executeOperation() {
 
     try {
         let response;
-        let endpoint = operation === 'backup' ? '/backup' : '/restore';
+        let endpoint = operation === 'backup' ? '/api/backup' : '/api/restore';
         let body;
 
         if (operation === 'backup') {
@@ -863,7 +866,7 @@ async function isAuth(){
  * @returns {Object} The headers object.
 */
 function getHeaders() {
-    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content') || null;
     
     const headers = {
         'Content-Type': 'application/json',

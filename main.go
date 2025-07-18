@@ -5,7 +5,6 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
-	"html/template"
 	"io/fs"
 	"log/slog"
 	"net"
@@ -15,24 +14,26 @@ import (
 	"runtime"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/RenanMonteiroS/MaestroSQLWeb/config"
 	"github.com/RenanMonteiroS/MaestroSQLWeb/controller"
 	"github.com/RenanMonteiroS/MaestroSQLWeb/middleware"
 	"github.com/RenanMonteiroS/MaestroSQLWeb/repository"
 	"github.com/RenanMonteiroS/MaestroSQLWeb/service"
-	"github.com/gin-contrib/cors"
-	"github.com/gin-contrib/sessions"
-	"github.com/gin-contrib/sessions/cookie"
-	"github.com/gin-gonic/gin"
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/filesystem"
+	"github.com/gofiber/fiber/v2/middleware/session"
+	"github.com/gofiber/template/html/v2"
+	"github.com/gofiber/utils"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
-	csrf "github.com/utrack/gin-csrf"
 	"golang.org/x/text/language"
 )
 
 // Embeds HTML templates. Allows files within the templates folder to be referenced without having them on the computer when the application is compiled.
 
-//go:embed templates/*
+//go:embed templates
 var TemplateFS embed.FS
 
 //go:embed static
@@ -42,6 +43,7 @@ var StaticFS embed.FS
 var LocaleFS embed.FS
 
 func main() {
+	// Create logs
 	logFile, err := os.OpenFile("app.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		os.Exit(1)
@@ -54,151 +56,111 @@ func main() {
 	}))
 	slog.SetDefault(logger)
 
+	//Get server network information
 	serverIP := config.AppHost
 	serverAddr := fmt.Sprintf(config.AppHost + ":" + fmt.Sprint(config.AppPort))
 	localIP := getOutboundIP()
 	var serverProtocol string
 
-	// Create an instance of the Gin Server Engine to be runned
-	server := gin.Default()
+	// Set the created templates in the Fiber Server Engine
+	templateSub, err := fs.Sub(TemplateFS, ".")
+	if err != nil {
+		slog.Error("Error creating subfilesystem for templates", "Error", err)
+		os.Exit(1)
+	}
+	templateEngine := html.NewFileSystem(http.FS(templateSub), ".html")
+
+	// Create an instance of the Fiber Server Engine to be runned
+	server := fiber.New(fiber.Config{
+		Views: templateEngine,
+	})
 
 	// Configure CORS usage
-	if config.CORSUsage {
+	if config.AppCORSUsage {
 		server.Use(cors.New(cors.Config{
-			AllowOrigins:     config.CORSAllowOrigins,
-			AllowMethods:     []string{"GET", "POST"},
-			AllowHeaders:     []string{"Content-Type", "Authorization", "Accept-Language", "X-Csrf-Token"},
+			AllowOrigins:     config.AppCORSAllowOrigins,
+			AllowMethods:     "GET,POST",
+			AllowHeaders:     "Content-Type, Authorization, Accept-Language, X-Csrf-Token",
 			AllowCredentials: true,
 		}))
 	}
 
-	// Starts a Session Cookie Store
-	store := cookie.NewStore([]byte(config.AppSessionSecret))
-	store.Options(sessions.Options{
-		Path:     "/",
-		MaxAge:   86400,
-		HttpOnly: true,
-		Secure:   config.AppCertificateUsage,
-		SameSite: http.SameSiteLaxMode,
-	})
-	server.Use(sessions.Sessions("maestro-sessions", store))
-
-	var csrfMiddleware gin.HandlerFunc
-	// Configure CSRF token usage
-	if config.AppCSRFTokenUsage {
-		csrfMiddleware = csrf.Middleware(csrf.Options{
-			Secret: config.AppCSRFTokenSecret,
-			ErrorFunc: func(c *gin.Context) {
-				slog.Error("CSRF token mismatch")
-				c.JSON(400, gin.H{"msg": "CSRF token mismatch"})
-				c.Abort()
-			},
-		})
+	// Starts a new language bundle
+	bundle := i18n.NewBundle(language.English)
+	bundle.RegisterUnmarshalFunc("json", json.Unmarshal)
+	if _, err := bundle.LoadMessageFileFS(LocaleFS, "locales/en-US.json"); err != nil {
+		slog.Error("Failed to load en-US messages", "Error", err)
+	}
+	if _, err := bundle.LoadMessageFileFS(LocaleFS, "locales/pt-BR.json"); err != nil {
+		slog.Error("Failed to load pt-BR messages", "Error", err)
 	}
 
-	//server.Static("/static", "./static")
-
-	// Creates the templates that will be served. It uses template.ParseFS to read the system's fs instead of the OS's fs. The embed templates will be read
-	tmpl := template.Must(template.ParseFS(TemplateFS, "templates/*"))
-	// Set the created templates in the Gin Server Engine
-	server.SetHTMLTemplate(tmpl)
-
+	// Initialize the auth layers instances
 	AuthService := service.NewAuthService()
 	AuthController := controller.NewAuthController(AuthService)
 
-	// Initialize the layers instances
+	// Initialize the database layers instances
 	DatabaseRepository := repository.NewDatabaseRepository(nil)
 	DatabaseService := service.NewDatabaseService(DatabaseRepository)
 	DatabaseController := controller.NewDatabaseController(DatabaseService)
-
-	// Initialize the HTTP routes
-
-	// If the app uses CSRF protection, starts a CSRF security middleware into the authentication routes
-	authRoutes := server.Group("/")
-	if config.AppCSRFTokenUsage {
-		authRoutes.Use(csrfMiddleware)
-	}
-	{
-		authRoutes.Any("/login", AuthController.LoginHandler)
-		authRoutes.GET("/logout", AuthController.LogoutHandler)
-		authRoutes.GET("/session", AuthController.SessionHandler)
-	}
-
-	oAuth2Routes := server.Group("/")
-	oAuth2Routes.GET("/auth/google/callback", AuthController.GoogleCallBackHandler)
-	oAuth2Routes.GET("/auth/microsoft/callback", AuthController.MicrosoftCallBackHandler)
-
-	// If the app uses some sort of authentication, starts a security middleware
-	protected := server.Group("/")
-	if len(config.AuthenticationMethods) > 0 {
-		protected.Use(middleware.AuthMiddleware())
-	}
-
-	// If the app uses CSRF protection, starts a CSRF security middleware into the general routes
-	if config.AppCSRFTokenUsage {
-		protected.Use(csrfMiddleware)
-	}
-	{
-		protected.POST("/connect", DatabaseController.ConnectDatabase)
-		protected.GET("/databases", DatabaseController.GetDatabases)
-		protected.POST("/backup", DatabaseController.BackupDatabase)
-		protected.POST("/restore", DatabaseController.RestoreDatabase)
-		protected.POST("/list-backups", DatabaseController.ListBackups)
-	}
-
-	if config.AppCertificateUsage {
-		serverProtocol = "https"
-	} else {
-		serverProtocol = "http"
-	}
-
-	serverIP = localIP
-	serverAddr = fmt.Sprintf(config.AppHost + ":" + fmt.Sprint(config.AppPort))
-
-	if config.AppOpenOnceRunned {
-		// Opens the URL in the browser and starts the server
-		if config.AppHost == "0.0.0.0" {
-			go openFile(fmt.Sprintf("%v://%v:%v/", serverProtocol, localIP, config.AppPort))
-		} else {
-			go openFile(fmt.Sprintf("%v://%v/", serverProtocol, serverAddr))
-		}
-	}
-
-	bundle := i18n.NewBundle(language.English)
-	bundle.RegisterUnmarshalFunc("json", json.Unmarshal)
-	bundle.LoadMessageFileFS(LocaleFS, `locales/en-US.json`)
-	bundle.LoadMessageFileFS(LocaleFS, `locales/pt-BR.json`)
-
-	// Starts a middleware to handle multilinguals
-	server.Use(func(c *gin.Context) {
-		// Gets the Accept Language header
-		lang := c.GetHeader("Accept-Language")
-
-		// Starts a new localizer looks up messages in the bundle according to the language preferences in langs
-		localizer := i18n.NewLocalizer(bundle, lang)
-
-		// Sets a key-value with the localizer
-		c.Set("localizer", localizer)
-
-		c.Next()
-	})
 
 	// Create subfilesystem to serve static
 	staticSub, err := fs.Sub(StaticFS, "static")
 	if err != nil {
 		slog.Error("Error creating subfilesystem", "Error", err)
 	}
-	server.StaticFS("/static", http.FS(staticSub))
 
-	// If the app uses CSRF protection, starts a CSRF security middleware into the "/" route
+	// Starts a Session Cookie Store
+	store := session.New(session.Config{
+		KeyLookup:      "cookie:maestro-sessions",
+		CookieDomain:   "",
+		CookiePath:     "/",
+		CookieSecure:   config.AppCertificateUsage,
+		CookieHTTPOnly: true,
+		CookieSameSite: "Lax",
+		Expiration:     time.Hour * 24,
+		KeyGenerator: func() string {
+			return utils.UUID()
+		},
+	})
+
+	//Middlewares session
+
+	//Inserts the session into the app scope
+	server.Use(middleware.SessionMiddleware(store))
+
+	// Configure CSRF token usage
 	if config.AppCSRFTokenUsage {
-		server.Use(csrfMiddleware)
+		server.Use(middleware.CsrfMiddleware())
 	}
 
+	// Starts a middleware to handle multilinguals
+	server.Use(middleware.LanguageMiddleware(bundle))
+
+	// HTTP Routes session
+
+	// Auth routes
+	authRoutes := server.Group("/")
+	{
+		authRoutes.All("/login", AuthController.LoginHandler)
+		authRoutes.Get("/logout", AuthController.LogoutHandler)
+		authRoutes.Get("/session", AuthController.SessionHandler)
+	}
+
+	// OAuth2 Routes
+	oAuth2Routes := server.Group("/")
+	{
+		oAuth2Routes.Get("/auth/google/callback", AuthController.GoogleCallBackHandler)
+		oAuth2Routes.Get("/auth/microsoft/callback", AuthController.MicrosoftCallBackHandler)
+	}
+
+	server.Use("/static", filesystem.New(filesystem.Config{
+		Root: http.FS(staticSub),
+	}))
 	// Initialize the "/" HTTP route, serving the HTML template file, providing some variables to the template
-	server.GET("/", func(c *gin.Context) {
-		localizer := c.MustGet("localizer").(*i18n.Localizer)
-		var varToServe gin.H
+	server.Get("/", func(ctx *fiber.Ctx) error {
+		localizer := ctx.Locals("localizer").(*i18n.Localizer)
+		var varToServe fiber.Map
 		var authenticationUsage bool
 		var authenticationOSIUsage bool
 		var authenticationGoogleOAuth2Usage bool
@@ -219,7 +181,7 @@ func main() {
 			authenticationUsage = true
 		}
 
-		varToServe = gin.H{
+		varToServe = fiber.Map{
 			"appHost":                            serverIP,
 			"appPort":                            config.AppPort,
 			"appCertificateUsage":                config.AppCertificateUsage,
@@ -238,21 +200,35 @@ func main() {
 		}
 
 		if config.AppCSRFTokenUsage {
-			varToServe["csrfToken"] = csrf.GetToken(c)
+			varToServe["csrfToken"] = ctx.Locals("csrf")
 		}
-		c.HTML(http.StatusOK, "backupForm.html", varToServe)
+		return ctx.Render("backupForm.html", varToServe)
 	})
 
+	// If the app uses some sort of authentication, starts a security middleware
+	protected := server.Group("/api")
+	if len(config.AuthenticationMethods) > 0 {
+		protected.Use(middleware.AuthMiddleware())
+	}
+
+	{
+		protected.Post("/connect", DatabaseController.ConnectDatabase)
+		protected.Get("/databases", DatabaseController.GetDatabases)
+		protected.Post("/backup", DatabaseController.BackupDatabase)
+		protected.Post("/restore", DatabaseController.RestoreDatabase)
+		protected.Post("/list-backups", DatabaseController.ListBackups)
+	}
+
 	// Not found route
-	server.NoRoute(func(ctx *gin.Context) {
-		localizer := ctx.MustGet("localizer").(*i18n.Localizer)
+	server.Use(func(ctx *fiber.Ctx) error {
+		localizer := ctx.Locals("localizer").(*i18n.Localizer)
 
 		// If is an API request...
-		if strings.Contains(ctx.GetHeader("Accept"), "application/json") {
-			ctx.JSON(http.StatusNotFound, map[string]any{"msg": "Route not found"})
+		if strings.Contains(ctx.Get("Accept"), "application/json") {
+			return ctx.Status(http.StatusNotFound).JSON(map[string]any{"msg": "Route not found"})
 		}
 
-		varsToServe := gin.H{
+		varsToServe := fiber.Map{
 			"T": func(translationID string) string {
 				return localizer.MustLocalize(&i18n.LocalizeConfig{
 					MessageID: translationID,
@@ -260,16 +236,35 @@ func main() {
 			},
 		}
 
-		ctx.HTML(http.StatusNotFound, "404.html", varsToServe)
+		return ctx.Status(http.StatusNotFound).Render("404.html", varsToServe)
 	})
+
+	// Gets the server network information
+	serverIP = localIP
+	serverAddr = fmt.Sprintf(config.AppHost + ":" + fmt.Sprint(config.AppPort))
+
+	if config.AppCertificateUsage {
+		serverProtocol = "https"
+	} else {
+		serverProtocol = "http"
+	}
+
+	if config.AppOpenOnceRunned {
+		// Opens the URL in the browser and starts the server
+		if config.AppHost == "0.0.0.0" {
+			go openFile(fmt.Sprintf("%v://%v:%v/", serverProtocol, localIP, config.AppPort))
+		} else {
+			go openFile(fmt.Sprintf("%v://%v/", serverProtocol, serverAddr))
+		}
+	}
 
 	fmt.Printf("MaestroSQL started. Your application is running at: http://%v/", serverAddr)
 	logger.Info(fmt.Sprintf("MaestroSQL started. Your application is running at: http://%v/", serverAddr))
 
 	if config.AppCertificateUsage {
-		server.RunTLS(serverAddr, config.AppCertificateLocation, config.AppCertificateKeyLocation)
+		server.ListenTLS(serverAddr, config.AppCertificateLocation, config.AppCertificateKeyLocation)
 	} else {
-		server.Run(serverAddr)
+		server.Listen(serverAddr)
 	}
 
 }
