@@ -374,6 +374,46 @@ When authentication is enabled, the following endpoints are protected and requir
   }
   ```
 
+#### `GET /api/list-backups`
+**Description**: Lists all .bak files in the specified directory
+- **Request Body**:
+  ```json
+  {
+    "backupFilesPath": "/path/to/file"
+  }
+  ```
+- **Response (success)**:
+  ```json
+  {
+    "status": "success",
+    "code": 200,
+    "message": "Backup files listed successfully",
+    "data": {
+        "backupFiles": [
+            {
+                "fileName": "database.bak",
+                "defaultDbName": "database"
+            }
+        ]
+    },
+    "timestamp": "2025-07-18T17:50:24-03:00",
+    "path": "/api/list-backups"
+  }
+  ```
+- **Response (fail)**:
+  ```json
+  {
+    "status": "error",
+    "code": 500,
+    "message": "Cannot list backup files",
+    "errors": {
+        "listBackups": "open /path/to/backups: Could not find the path."
+    },
+    "timestamp": "2025-07-18T17:51:24-03:00",
+    "path": "/api/list-backups"
+  }
+  ```
+
 #### `POST /api/restore`
 **Description**: Restores databases from backup files
 - **Request Body**:
