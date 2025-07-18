@@ -22,7 +22,6 @@ import (
 	"github.com/RenanMonteiroS/MaestroSQLWeb/repository"
 	"github.com/RenanMonteiroS/MaestroSQLWeb/service"
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/filesystem"
 	"github.com/gofiber/fiber/v2/middleware/session"
 	"github.com/gofiber/template/html/v2"
@@ -75,16 +74,6 @@ func main() {
 		Views: templateEngine,
 	})
 
-	// Configure CORS usage
-	if config.AppCORSUsage {
-		server.Use(cors.New(cors.Config{
-			AllowOrigins:     config.AppCORSAllowOrigins,
-			AllowMethods:     "GET,POST",
-			AllowHeaders:     "Content-Type, Authorization, Accept-Language, X-Csrf-Token",
-			AllowCredentials: true,
-		}))
-	}
-
 	// Starts a new language bundle
 	bundle := i18n.NewBundle(language.English)
 	bundle.RegisterUnmarshalFunc("json", json.Unmarshal)
@@ -126,13 +115,18 @@ func main() {
 
 	//Middlewares session
 
-	//Inserts the session into the app scope
-	server.Use(middleware.SessionMiddleware(store))
+	// Configure CORS usage
+	if config.AppCORSUsage {
+		server.Use(middleware.CorsMiddleware())
+	}
 
 	// Configure CSRF token usage
 	if config.AppCSRFTokenUsage {
 		server.Use(middleware.CsrfMiddleware())
 	}
+
+	//Checks if the session is set
+	server.Use(middleware.SessionMiddleware(store))
 
 	// Starts a middleware to handle multilinguals
 	server.Use(middleware.LanguageMiddleware(bundle))

@@ -108,7 +108,7 @@ MaestroSQL follows a clean architecture pattern with clear separation of concern
 ## 📡 API Endpoints
 
 ### Authentication
-Authentication is handled via a session-based cookie store. When authentication is enabled, most endpoints are protected by a middleware (`middleware/auth_middleware.go`) that verifies the user's session. The session status can be checked at the `/session` endpoint.
+Authentication is handled via a session-based cookie store. When authentication is enabled, most endpoints are protected by a middleware (`middleware/auth_middleware.go`) that verifies the user's session. The session status can be checked at the `/api/session` endpoint.
 
 #### `GET /login`
 **Description**: Initiates the authentication process. The authentication method is specified via a query parameter.
@@ -201,7 +201,7 @@ When authentication is enabled, the following endpoints are protected and requir
 - **Response**: HTML form with step-by-step wizard
 - **Features**: Responsive design, real-time validation
 
-#### `POST /connect`
+#### `POST /api/connect`
 **Description**: Establishes connection to SQL Server
 - **Request Body**:
   ```json
@@ -242,7 +242,7 @@ When authentication is enabled, the following endpoints are protected and requir
   }
   ```
 
-#### `GET /databases`
+#### `GET /api/databases`
 **Description**: Retrieves all databases and their file information
 - **Response (success)**:
   ```json
@@ -264,7 +264,7 @@ When authentication is enabled, the following endpoints are protected and requir
       }
     ],
     "timestamp": "2025-07-16T10:48:48-03:00",
-    "path": "/databases"    
+    "path": " /api/databases"    
   }
   ```
 - **Response (fail)**:
@@ -277,11 +277,11 @@ When authentication is enabled, the following endpoints are protected and requir
         "databases": "failed to send SQL Batch: write tcp 127.0.0.1:58411..."
     },
     "timestamp": "2025-07-16T10:50:42-03:00",
-    "path": "/databases"
+    "path": "/api/databases"
   }
   ```
 
-#### `POST /backup`
+#### `POST /api/backup`
 **Description**: Performs concurrent backup operations
 - **Request Body**:
   ```json
@@ -312,7 +312,7 @@ When authentication is enabled, the following endpoints are protected and requir
       "totalTime": "0h0m1s"
     },
     "timestamp": "2025-07-16T10:52:18-03:00",
-    "path": "/backup"
+    "path": "/api/backup"
   }
   ```
 - **Response (done with errors)**:
@@ -341,7 +341,7 @@ When authentication is enabled, the following endpoints are protected and requir
         "totalBackupErrors": 1
     },
     "timestamp": "2025-07-16T10:52:18-03:00",
-    "path": "/backup"
+    "path": "/api/backup"
   }
   ```
 - **Response (error)**:
@@ -370,11 +370,11 @@ When authentication is enabled, the following endpoints are protected and requir
         "totalBackupErrors": 1
     },
     "timestamp": "2025-07-16T10:52:18-03:00",
-    "path": "/backup"
+    "path": "/api/backup"
   }
   ```
 
-#### `POST /restore`
+#### `POST /api/restore`
 **Description**: Restores databases from backup files
 - **Request Body**:
   ```json
@@ -410,7 +410,7 @@ When authentication is enabled, the following endpoints are protected and requir
         "totalTime": "0h0m1s"
     },
     "timestamp": "2025-07-16T13:58:46-03:00",
-    "path": "/restore"
+    "path": "/api/restore"
   }
   ```
 
@@ -450,7 +450,7 @@ When authentication is enabled, the following endpoints are protected and requir
         "totalTime": "0h2m8s"
     },
     "timestamp": "2025-07-16T14:09:11-03:00",
-    "path": "/restore"
+    "path": "/api/restore"
   }
   ```
 
@@ -470,7 +470,7 @@ When authentication is enabled, the following endpoints are protected and requir
         "totalRestoreErrors": 1
     },
     "timestamp": "2025-07-16T13:58:46-03:00",
-    "path": "/restore"
+    "path": "/api/restore"
   }
   ```
 
@@ -565,8 +565,8 @@ All configuration is done in the `config/config.go` file.
 | `AppCSRFTokenUsage` | Enable or disable CSRF protection. |
 | `AppCSRFCookieSecret` | A secret for the cookie used for CSRF token verification. |
 | `AppCSRFTokenSecret` | A secret for the token used for CSRF token verification. |
-| `CORSUsage` | Enable or disable CORS. |
-| `CORSAllowOrigins` | A list of allowed origins for CORS. |
+| `AppCORSUsage` | If the app will use CORS. If true, all requests will pass through CORS verification. |
+| `AppCORSAllowOrigins` | A string containing all origins allowed for CORS. Each origin is separated by a comma.|
 | `GoogleOAuth2ClientID` | Client ID for Google OAuth2. |
 | `GoogleOAuth2ClientSecret` | Client Secret for Google OAuth2. |
 | `GoogleOAuth2RedirectURL` | Redirect URL for Google OAuth2. |
@@ -754,7 +754,7 @@ For support and questions:
 ## 🏆 Acknowledgments
 
 - **Bootstrap**: For the responsive UI framework
-- **Gin Framework**: For the robust HTTP routing
+- **Fiber Framework**: For the robust HTTP routing
 - **Microsoft SQL Server**: For the database engine
 - **Go**: For performance and reliability
 
